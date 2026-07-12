@@ -1,11 +1,12 @@
 name: Deploy
 
 # Qo'lda ishga tushiriladi (Actions → Deploy → Run workflow).
-# Sozlangandan keyin main'ga push'da avtomatik qilish uchun 'push' ni oching.
+# Production = master. Sozlangandan keyin master'ga merge'да avtomatik
+# deploy qilish uchun quyidagi 'push' ni oching.
 on:
   workflow_dispatch:
   # push:
-  #   branches: [main]
+  #   branches: [master]
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}:latest
@@ -30,7 +31,7 @@ jobs:
       - name: Image build + push
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./apps/api
           push: true
           tags: ${{ env.IMAGE }}
 

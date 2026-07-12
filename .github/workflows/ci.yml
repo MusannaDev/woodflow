@@ -2,13 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [development, master]
   pull_request:
-    branches: [main]
+    branches: [development, master]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # Monorepo: barcha buyruqlar apps/api ichida ishlaydi
+    defaults:
+      run:
+        working-directory: apps/api
 
     # CI davomida haqiqiy Postgres — migratsiyalar va client tekshiriladi
     services:
@@ -37,6 +42,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: apps/api/package-lock.json
 
       - name: Install
         run: npm ci

@@ -1,0 +1,22 @@
+# Dev uchun PostgreSQL. Ishga tushirish: docker compose up -d
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: woodflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: woodflow
+      POSTGRES_PASSWORD: woodflow
+      POSTGRES_DB: woodflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - woodflow_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U woodflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  woodflow_pgdata:

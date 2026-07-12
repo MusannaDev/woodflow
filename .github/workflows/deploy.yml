@@ -1,0 +1,55 @@
+name: Deploy
+
+# Qo'lda ishga tushiriladi (Actions → Deploy → Run workflow).
+# Sozlangandan keyin main'ga push'da avtomatik qilish uchun 'push' ni oching.
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}:latest
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: GHCR'ga login
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image build + push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}
+
+      # VPS'da yangi image'ni tortib, konteynerni qayta ishga tushirish.
+      # Kerakli Secrets (Settings → Secrets → Actions):
+      #   SSH_HOST, SSH_USER, SSH_KEY (private key), DATABASE_URL, JWT_SECRET
+      - name: VPS'ga deploy (SSH)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            docker pull ${{ env.IMAGE }}
+            docker stop woodflow-api || true
+            docker rm woodflow-api || true
+            docker run -d --name woodflow-api --restart unless-stopped \
+              -p 4010:4010 \
+              -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+              -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+              -e PORT=4010 \
+              ${{ env.IMAGE }}

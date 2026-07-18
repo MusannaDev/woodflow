@@ -26,9 +26,11 @@ enum WorkspaceType {
 }
 
 enum Role {
-  OWNER
+  OWNER // egasi — hamma narsa + konsolidatsiya
+  ADMIN // administrator — RoleGuard darajasi
+  AGENT // agent/menejer — RoleGuard darajasi
   MANAGER
-  WORKER
+  WORKER // ishchi — faqat AuthGuard darajasi
 }
 
 enum SupplierType {

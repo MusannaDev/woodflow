@@ -1,9 +1,12 @@
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
+import { GqlAuthGuard } from './common/guards/gql-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 import { CustomersModule } from './customers/customers.module';
 import { EmployeesModule } from './employees/employees.module';
 import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
@@ -43,6 +46,13 @@ import { TransfersModule } from './transfers/transfers.module';
     CustomersModule,
     SuppliersModule,
     ExchangeRatesModule,
+  ],
+  providers: [
+    // GLOBAL guard zanjiri:
+    // 1) AuthGuard — @Public() bo'lmasa JWT majburiy (WithoutGuard = @Public)
+    // 2) RolesGuard — @Roles(...) bo'lsa rol tekshiriladi (masalan ADMIN, AGENT)
+    { provide: APP_GUARD, useClass: GqlAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

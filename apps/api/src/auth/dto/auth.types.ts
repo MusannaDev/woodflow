@@ -14,6 +14,24 @@ export class LoginInput {
   password!: string;
 }
 
+@InputType()
+export class RegisterInput {
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
+
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  phone!: string;
+
+  @Field()
+  @IsString()
+  @MinLength(6, { message: 'Parol kamida 6 belgi bo‘lsin.' })
+  password!: string;
+}
+
 @ObjectType()
 export class WorkspaceBrief {
   @Field()

@@ -30,7 +30,14 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
       router.replace('/login');
       return;
     }
-    setWs(session.currentWorkspace());
+    const current = session.currentWorkspace();
+    if (!current) {
+      // Buzuq/eski sessiya — blank sahifa o'rniga toza login
+      session.clear();
+      router.replace('/login');
+      return;
+    }
+    setWs(current);
     setList(session.workspaces());
   }, [router]);
 
@@ -51,10 +58,13 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
     <div data-ws={ws.type} className="min-h-screen flex">
       {/* Yon menyu */}
       <aside className="hidden md:flex w-60 flex-col bg-neutral-900 text-neutral-300">
-        <div className="px-5 py-4 flex items-center gap-2 text-white font-bold text-lg">
+        <a
+          href="/"
+          className="px-5 py-4 flex items-center gap-2 text-white font-bold text-lg hover:opacity-80 transition-opacity"
+        >
           <span className="w-3 h-3 rounded-full bg-brand inline-block" />
           WoodFlow
-        </div>
+        </a>
 
         {/* Workspace almashtirgich */}
         <div className="px-3 pb-3 relative">

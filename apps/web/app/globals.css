@@ -24,3 +24,32 @@
 body {
   @apply bg-neutral-50 text-neutral-900 antialiased;
 }
+
+/* Auth sahifalari uchun umumiy premium elementlar */
+@layer components {
+  .field-label {
+    @apply text-[13px] font-medium text-neutral-600;
+  }
+  .field-input {
+    @apply w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-[15px]
+      placeholder:text-neutral-300 transition-shadow
+      focus:outline-none focus:ring-4 focus:ring-brand/15 focus:border-brand;
+  }
+  .btn-primary {
+    @apply w-full rounded-xl bg-brand text-white py-3 font-semibold tracking-wide
+      shadow-lg shadow-brand/25 transition-all
+      hover:opacity-95 hover:shadow-brand/35 active:scale-[0.99]
+      disabled:opacity-40 disabled:shadow-none;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

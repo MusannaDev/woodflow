@@ -20,7 +20,10 @@ export const session = {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(NAME_KEY, name);
     localStorage.setItem(WS_LIST_KEY, JSON.stringify(workspaces));
-    if (workspaces.length > 0 && !localStorage.getItem(WS_CURRENT_KEY)) {
+    // Saqlangan joriy workspace yangi ro'yxatda bo'lmasa (eski sessiya) — birinchisiga o'tamiz
+    const current = localStorage.getItem(WS_CURRENT_KEY);
+    const stillValid = workspaces.some((w) => w.id === current);
+    if (workspaces.length > 0 && !stillValid) {
       localStorage.setItem(WS_CURRENT_KEY, workspaces[0].id);
     }
   },

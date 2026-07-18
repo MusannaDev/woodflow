@@ -230,6 +230,7 @@ type Mutation {
   login(input: LoginInput!): AuthPayload!
   paySalary(input: PaySalaryInput!): SalaryPayment!
   recordDefect(input: RecordDefectInput!): DefectRecord!
+  register(input: RegisterInput!): AuthPayload!
   setExchangeRate(input: SetExchangeRateInput!): ExchangeRate!
 }
 
@@ -321,6 +322,12 @@ input RecordDefectInput {
   lotId: String!
   reason: String
   volumeM3: Float!
+}
+
+input RegisterInput {
+  name: String!
+  password: String!
+  phone: String!
 }
 
 type SalaryPayment {

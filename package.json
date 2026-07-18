@@ -1,0 +1,13 @@
+{
+  "name": "woodflow",
+  "private": true,
+  "description": "WoodFlow monorepo — ildizdan qulay buyruqlar",
+  "scripts": {
+    "dev": "npm run dev:api & npm run dev:web",
+    "dev:api": "npm --prefix apps/api run start:dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "build:api": "npm --prefix apps/api run build",
+    "build:web": "npm --prefix apps/web run build",
+    "db": "docker compose up -d"
+  }
+}

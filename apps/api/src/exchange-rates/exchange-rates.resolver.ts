@@ -1,15 +1,14 @@
-import { UseGuards } from '@nestjs/common';
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
-import { GqlAuthGuard } from '../common/guards/gql-auth.guard';
+import { Role } from '@prisma/client';
+import { Roles } from '../common/decorators/roles.decorator';
 import {
   ExchangeRate,
   SetExchangeRateInput,
 } from './dto/exchange-rate.types';
 import { ExchangeRatesService } from './exchange-rates.service';
 
-/** Kurs global — workspace guard kerak emas, faqat auth. */
+/** Kurs global. Auth — global guard orqali; kiritish esa RoleGuard bilan. */
 @Resolver(() => ExchangeRate)
-@UseGuards(GqlAuthGuard)
 export class ExchangeRatesResolver {
   constructor(private readonly exchangeRatesService: ExchangeRatesService) {}
 
@@ -25,6 +24,8 @@ export class ExchangeRatesResolver {
     return this.exchangeRatesService.list();
   }
 
+  /** RoleGuard: kursni faqat boshqaruv (OWNER/ADMIN/AGENT) kiritadi. */
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
   @Mutation(() => ExchangeRate)
   setExchangeRate(
     @Args('input') input: SetExchangeRateInput,

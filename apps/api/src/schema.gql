@@ -24,6 +24,11 @@ type ConsolidatedReport {
   workspaces: [WorkspacePnl!]!
 }
 
+input CreateCustomerInput {
+  name: String!
+  phone: String
+}
+
 input CreateEmployeeInput {
   isShared: Boolean = false
   name: String!
@@ -87,6 +92,12 @@ input CreateShipmentInput {
   truckNumber: String!
 }
 
+input CreateSupplierInput {
+  name: String!
+  phone: String
+  type: SupplierType!
+}
+
 input CreateTransferInput {
   date: DateTime
   internalPriceUzs: Float!
@@ -99,6 +110,15 @@ enum Currency {
   RUB
   USD
   UZS
+}
+
+type Customer {
+  createdAt: DateTime!
+  debtUzs: Float!
+  id: String!
+  name: String!
+  phone: String
+  salesCount: Int!
 }
 
 """
@@ -123,6 +143,13 @@ type Employee {
   salaryAmount: Float!
   salaryType: SalaryType!
   workspaceId: String
+}
+
+type ExchangeRate {
+  date: DateTime!
+  id: String!
+  rubToUzs: Float!
+  usdToUzs: Float!
 }
 
 type Expense {
@@ -190,6 +217,7 @@ enum LotStatus {
 
 type Mutation {
   addPayment(input: AddPaymentInput!): Payment!
+  createCustomer(input: CreateCustomerInput!): Customer!
   createEmployee(input: CreateEmployeeInput!): Employee!
   createExpense(input: CreateExpenseInput!): Expense!
   createProductTemplate(input: CreateProductTemplateInput!): ProductTemplate!
@@ -197,10 +225,12 @@ type Mutation {
   createPurchase(input: CreatePurchaseInput!): Purchase!
   createSale(input: CreateSaleInput!): Sale!
   createShipment(input: CreateShipmentInput!): Shipment!
+  createSupplier(input: CreateSupplierInput!): Supplier!
   createTransfer(input: CreateTransferInput!): StockTransfer!
   login(input: LoginInput!): AuthPayload!
   paySalary(input: PaySalaryInput!): SalaryPayment!
   recordDefect(input: RecordDefectInput!): DefectRecord!
+  setExchangeRate(input: SetExchangeRateInput!): ExchangeRate!
 }
 
 input PaySalaryInput {
@@ -265,11 +295,14 @@ enum PurchaseSource {
 
 type Query {
   consolidatedReport: ConsolidatedReport!
+  customers: [Customer!]!
   employees: [Employee!]!
+  exchangeRates: [ExchangeRate!]!
   expenses(category: ExpenseCategory): [Expense!]!
   finishedGoods: [FinishedGoodsLot!]!
   inventory: [InventoryLot!]!
   inventorySummary: InventorySummary!
+  latestExchangeRate(date: DateTime): ExchangeRate!
   me: String!
   productTemplates: [ProductTemplate!]!
   productionBatches: [ProductionBatch!]!
@@ -279,6 +312,7 @@ type Query {
   shipment(id: String!): Shipment!
   shipmentPnl(shipmentId: String!): ShipmentPnl!
   shipments: [Shipment!]!
+  suppliers: [Supplier!]!
   transfers: [StockTransfer!]!
 }
 
@@ -343,6 +377,12 @@ enum SaleType {
   WHOLESALE
 }
 
+input SetExchangeRateInput {
+  date: DateTime
+  rubToUzs: Float!
+  usdToUzs: Float!
+}
+
 type Shipment {
   arrivalDate: DateTime!
   createdAt: DateTime!
@@ -377,6 +417,21 @@ type StockTransfer {
   lotId: String!
   toWorkspaceId: String!
   volumeM3: Float!
+}
+
+type Supplier {
+  createdAt: DateTime!
+  id: String!
+  name: String!
+  phone: String
+  purchasesCount: Int!
+  totalPurchasedUzs: Float!
+  type: SupplierType!
+}
+
+enum SupplierType {
+  LOCAL
+  RUSSIA
 }
 
 type WorkspaceBrief {

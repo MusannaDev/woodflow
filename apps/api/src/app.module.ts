@@ -4,7 +4,9 @@ import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
+import { CustomersModule } from './customers/customers.module';
 import { EmployeesModule } from './employees/employees.module';
+import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -13,6 +15,7 @@ import { PurchasesModule } from './purchases/purchases.module';
 import { ReportsModule } from './reports/reports.module';
 import { SalesModule } from './sales/sales.module';
 import { ShipmentsModule } from './shipments/shipments.module';
+import { SuppliersModule } from './suppliers/suppliers.module';
 import { TransfersModule } from './transfers/transfers.module';
 
 @Module({
@@ -37,6 +40,9 @@ import { TransfersModule } from './transfers/transfers.module';
     TransfersModule,
     ProductionModule,
     EmployeesModule,
+    CustomersModule,
+    SuppliersModule,
+    ExchangeRatesModule,
   ],
 })
 export class AppModule {}

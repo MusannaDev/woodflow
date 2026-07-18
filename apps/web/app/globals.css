@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Workspace ranglari (UI hujjati §2):
+ *  Yog'och sotuvi  → qahrabo (amber)
+ *  Taxta sotuvi    → yashil
+ * data-ws atributi orqali butun UI rangi almashadi.
+ */
+:root,
+[data-ws='WOOD_TRADING'] {
+  --brand: 176 106 36;        /* amber-800ish  #b06a24 */
+  --brand-soft: 201 138 69;   /* #c98a45 */
+  --brand-faint: 246 238 226; /* och fon */
+}
+
+[data-ws='LUMBER_PRODUCTION'] {
+  --brand: 79 122 69;         /* yashil #4f7a45 */
+  --brand-soft: 111 154 99;   /* #6f9a63 */
+  --brand-faint: 233 240 229; /* och fon */
+}
+
+body {
+  @apply bg-neutral-50 text-neutral-900 antialiased;
+}

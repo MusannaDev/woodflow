@@ -1,0 +1,10 @@
+{
+  "name": "WoodFlow",
+  "short_name": "WoodFlow",
+  "description": "Yog'och & Taxta biznes platformasi",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#b06a24",
+  "icons": []
+}

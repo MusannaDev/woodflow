@@ -21,8 +21,8 @@ datasource db {
 // ─────────────────────────── ENUMS ───────────────────────────
 
 enum WorkspaceType {
-  WOOD_TRADING       // 1-biznes · Yog'och sotuvi
-  LUMBER_PRODUCTION  // 2-biznes · Taxta sotuvi
+  WOOD_TRADING // 1-biznes · Yog'och sotuvi
+  LUMBER_PRODUCTION // 2-biznes · Taxta sotuvi
 }
 
 enum Role {
@@ -37,9 +37,9 @@ enum SupplierType {
 }
 
 enum PurchaseSource {
-  RUSSIA_IMPORT      // furaga bog'liq, valyuta RUB, kurs muzlatiladi
-  LOCAL_WHOLESALE    // furasiz, valyuta UZS
-  INTERNAL_TRANSFER  // 1-biznesdan ichki transfer (2-biznesga xarajat)
+  RUSSIA_IMPORT // furaga bog'liq, valyuta RUB, kurs muzlatiladi
+  LOCAL_WHOLESALE // furasiz, valyuta UZS
+  INTERNAL_TRANSFER // 1-biznesdan ichki transfer (2-biznesga xarajat)
 }
 
 enum Currency {
@@ -49,9 +49,9 @@ enum Currency {
 }
 
 enum SaleType {
-  PER_CUBE           // furada kub bilan
-  PER_PIECE          // donaga
-  WHOLESALE          // ulgurji
+  PER_CUBE // furada kub bilan
+  PER_PIECE // donaga
+  WHOLESALE // ulgurji
 }
 
 enum ExpenseCategory {
@@ -73,22 +73,22 @@ enum SalaryType {
 }
 
 enum LedgerEntryType {
-  PURCHASE           // kirim (chiqim pul / tannarx)
-  SALE               // savdo (kirim pul)
-  PAYMENT            // to'lov qabuli
-  EXPENSE            // xarajat
-  SALARY_PAYMENT     // oylik
-  TRANSFER_IN        // ichki transfer — daromad (1-biznes)
-  TRANSFER_OUT       // ichki transfer — xarajat (2-biznes)
-  DEFECT_LOSS        // nuqson zarari
+  PURCHASE // kirim (chiqim pul / tannarx)
+  SALE // savdo (kirim pul)
+  PAYMENT // to'lov qabuli
+  EXPENSE // xarajat
+  SALARY_PAYMENT // oylik
+  TRANSFER_IN // ichki transfer — daromad (1-biznes)
+  TRANSFER_OUT // ichki transfer — xarajat (2-biznes)
+  DEFECT_LOSS // nuqson zarari
 }
 
 enum LotStatus {
-  AVAILABLE          // Mavjud
-  LOW                // Kam qolgan
-  RESERVED           // Bron qilingan
-  SOLD_OUT           // Tugagan
-  DEFECT             // Nuqson lot
+  AVAILABLE // Mavjud
+  LOW // Kam qolgan
+  RESERVED // Bron qilingan
+  SOLD_OUT // Tugagan
+  DEFECT // Nuqson lot
 }
 
 // ──────────────────── MULTI-TENANCY / USERS ───────────────────
@@ -110,36 +110,36 @@ model Workspace {
   type         WorkspaceType
   baseCurrency Currency      @default(UZS)
 
-  memberships    Membership[]
-  suppliers      Supplier[]
-  customers      Customer[]
-  shipments      Shipment[]
-  purchases      Purchase[]
-  inventoryLots  InventoryLot[]
-  sales          Sale[]
-  expenses       Expense[]
-  employees      Employee[]
-  productTemplates ProductTemplate[]
+  memberships       Membership[]
+  suppliers         Supplier[]
+  customers         Customer[]
+  shipments         Shipment[]
+  purchases         Purchase[]
+  inventoryLots     InventoryLot[]
+  sales             Sale[]
+  expenses          Expense[]
+  employees         Employee[]
+  productTemplates  ProductTemplate[]
   productionBatches ProductionBatch[]
-  finishedGoods  FinishedGoodsLot[]
-  ledgerEntries  LedgerEntry[]
-  transfersOut   StockTransfer[] @relation("TransferFrom")
-  transfersIn    StockTransfer[] @relation("TransferTo")
+  finishedGoods     FinishedGoodsLot[]
+  ledgerEntries     LedgerEntry[]
+  transfersOut      StockTransfer[]    @relation("TransferFrom")
+  transfersIn       StockTransfer[]    @relation("TransferTo")
 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Membership {
-  id          String    @id @default(cuid())
+  id          String @id @default(cuid())
   userId      String
   workspaceId String
-  role        Role      @default(WORKER)
+  role        Role   @default(WORKER)
 
-  user        User      @relation(fields: [userId], references: [id])
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
 
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([userId, workspaceId])
   @@index([workspaceId])
@@ -154,24 +154,24 @@ model Supplier {
   phone       String?
   type        SupplierType
 
-  workspace   Workspace    @relation(fields: [workspaceId], references: [id])
-  purchases   Purchase[]
+  workspace Workspace  @relation(fields: [workspaceId], references: [id])
+  purchases Purchase[]
 
-  createdAt   DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   @@index([workspaceId])
 }
 
 model Customer {
-  id          String    @id @default(cuid())
+  id          String  @id @default(cuid())
   workspaceId String
   name        String
   phone       String?
 
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
-  sales       Sale[]
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  sales     Sale[]
 
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([workspaceId])
 }
@@ -179,21 +179,21 @@ model Customer {
 // ─────────────────── KIRIM: FURA + PURCHASE ───────────────────
 
 model Shipment {
-  id            String     @id @default(cuid())
+  id            String   @id @default(cuid())
   workspaceId   String
-  truckNumber   String     // nomer, masalan AA777BB
-  truckColor    String?    // rang
+  truckNumber   String // nomer, masalan AA777BB
+  truckColor    String? // rang
   ownerName     String
   ownerPhone    String?
   arrivalDate   DateTime
-  transportCost Decimal    @default(0) @db.Decimal(18, 2) // so'mda
-  customsCost   Decimal    @default(0) @db.Decimal(18, 2) // bojxona, so'mda
+  transportCost Decimal  @default(0) @db.Decimal(18, 2) // so'mda
+  customsCost   Decimal  @default(0) @db.Decimal(18, 2) // bojxona, so'mda
 
-  workspace     Workspace  @relation(fields: [workspaceId], references: [id])
-  purchases     Purchase[]
+  workspace Workspace  @relation(fields: [workspaceId], references: [id])
+  purchases Purchase[]
 
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([workspaceId])
 }
@@ -202,23 +202,23 @@ model Purchase {
   id           String         @id @default(cuid())
   workspaceId  String
   source       PurchaseSource
-  shipmentId   String?        // RUSSIA_IMPORT da to'ladi
+  shipmentId   String? // RUSSIA_IMPORT da to'ladi
   supplierId   String?
-  woodType     String         // Qarag'ay, Terak, Qayin...
-  grade        String         // 1-nav, 2-nav...
+  woodType     String // Qarag'ay, Terak, Qayin...
+  grade        String // 1-nav, 2-nav...
   volumeM3     Decimal        @db.Decimal(12, 4)
   unitPrice    Decimal        @db.Decimal(18, 2) // asl valyutada (RUB yoki UZS)
-  currency     Currency                          // RUB | UZS
+  currency     Currency // RUB | UZS
   exchangeRate Decimal        @default(1) @db.Decimal(14, 6) // kirim kunida muzlatiladi
   totalCostUzs Decimal        @db.Decimal(18, 2) // so'mga aylantirilgan jami tannarx
   date         DateTime
 
-  workspace    Workspace      @relation(fields: [workspaceId], references: [id])
-  shipment     Shipment?      @relation(fields: [shipmentId], references: [id])
-  supplier     Supplier?      @relation(fields: [supplierId], references: [id])
-  lot          InventoryLot?  // stock hosil qiladi (1:1)
+  workspace Workspace     @relation(fields: [workspaceId], references: [id])
+  shipment  Shipment?     @relation(fields: [shipmentId], references: [id])
+  supplier  Supplier?     @relation(fields: [supplierId], references: [id])
+  lot       InventoryLot? // stock hosil qiladi (1:1)
 
-  createdAt    DateTime       @default(now())
+  createdAt DateTime @default(now())
 
   @@index([workspaceId])
   @@index([shipmentId])
@@ -227,38 +227,38 @@ model Purchase {
 // ─────────────────────── OMBOR + NUQSON ───────────────────────
 
 model InventoryLot {
-  id                 String          @id @default(cuid())
-  workspaceId        String
-  purchaseId         String          @unique
-  woodType           String
-  grade              String
-  volumeM3Remaining  Decimal         @db.Decimal(12, 4) // sotiladigan qoldiq
-  unitCostUzsPerM3   Decimal         @db.Decimal(18, 2) // tannarx / m³
-  status             LotStatus       @default(AVAILABLE)
+  id                String    @id @default(cuid())
+  workspaceId       String
+  purchaseId        String    @unique
+  woodType          String
+  grade             String
+  volumeM3Remaining Decimal   @db.Decimal(12, 4) // sotiladigan qoldiq
+  unitCostUzsPerM3  Decimal   @db.Decimal(18, 2) // tannarx / m³
+  status            LotStatus @default(AVAILABLE)
 
-  workspace          Workspace       @relation(fields: [workspaceId], references: [id])
-  purchase           Purchase        @relation(fields: [purchaseId], references: [id])
-  defects            DefectRecord[]
-  saleItems          SaleItem[]
-  transfers          StockTransfer[]
-  productionBatches  ProductionBatch[]
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id])
+  purchase          Purchase          @relation(fields: [purchaseId], references: [id])
+  defects           DefectRecord[]
+  saleItems         SaleItem[]
+  transfers         StockTransfer[]
+  productionBatches ProductionBatch[]
 
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([workspaceId])
 }
 
 model DefectRecord {
-  id        String       @id @default(cuid())
-  lotId     String
-  volumeM3  Decimal      @db.Decimal(12, 4) // qoldiqdan minus qilinadi
-  reason    String?
-  date      DateTime
+  id       String   @id @default(cuid())
+  lotId    String
+  volumeM3 Decimal  @db.Decimal(12, 4) // qoldiqdan minus qilinadi
+  reason   String?
+  date     DateTime
 
-  lot       InventoryLot @relation(fields: [lotId], references: [id])
+  lot InventoryLot @relation(fields: [lotId], references: [id])
 
-  createdAt DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   @@index([lotId])
 }
@@ -266,38 +266,38 @@ model DefectRecord {
 // ───────────────────────── SAVDO + TO'LOV ─────────────────────
 
 model Sale {
-  id            String     @id @default(cuid())
+  id            String   @id @default(cuid())
   workspaceId   String
   customerId    String?
   saleType      SaleType
-  totalPriceUzs Decimal    @db.Decimal(18, 2) // narx doim so'mda
+  totalPriceUzs Decimal  @db.Decimal(18, 2) // narx doim so'mda
   date          DateTime
 
-  workspace     Workspace  @relation(fields: [workspaceId], references: [id])
-  customer      Customer?  @relation(fields: [customerId], references: [id])
-  items         SaleItem[]
-  payments      Payment[]
+  workspace Workspace  @relation(fields: [workspaceId], references: [id])
+  customer  Customer?  @relation(fields: [customerId], references: [id])
+  items     SaleItem[]
+  payments  Payment[]
 
-  createdAt     DateTime   @default(now())
+  createdAt DateTime @default(now())
 
   @@index([workspaceId])
   @@index([customerId])
 }
 
 model SaleItem {
-  id           String       @id @default(cuid())
+  id           String  @id @default(cuid())
   saleId       String
   lotId        String
-  quantity     Int          // dona soni
-  length       Decimal      @db.Decimal(8, 3) // m
-  width        Decimal      @db.Decimal(8, 3) // m
-  thickness    Decimal      @db.Decimal(8, 3) // m
-  volumeM3     Decimal      @db.Decimal(12, 4) // = L×W×T×qty (avto)
-  unitPriceUzs Decimal      @db.Decimal(18, 2)
-  lineTotalUzs Decimal      @db.Decimal(18, 2)
+  quantity     Int // dona soni
+  length       Decimal @db.Decimal(8, 3) // m
+  width        Decimal @db.Decimal(8, 3) // m
+  thickness    Decimal @db.Decimal(8, 3) // m
+  volumeM3     Decimal @db.Decimal(12, 4) // = L×W×T×qty (avto)
+  unitPriceUzs Decimal @db.Decimal(18, 2)
+  lineTotalUzs Decimal @db.Decimal(18, 2)
 
-  sale         Sale         @relation(fields: [saleId], references: [id])
-  lot          InventoryLot @relation(fields: [lotId], references: [id])
+  sale Sale         @relation(fields: [saleId], references: [id])
+  lot  InventoryLot @relation(fields: [lotId], references: [id])
 
   @@index([saleId])
   @@index([lotId])
@@ -312,9 +312,9 @@ model Payment {
   amountUzs    Decimal  @db.Decimal(18, 2) // so'mga aylantirilgan
   date         DateTime
 
-  sale         Sale     @relation(fields: [saleId], references: [id])
+  sale Sale @relation(fields: [saleId], references: [id])
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([saleId])
 }
@@ -322,75 +322,75 @@ model Payment {
 // ────────────── ISHLAB CHIQARISH + ICHKI TRANSFER ─────────────
 
 model ProductTemplate {
-  id              String            @id @default(cuid())
-  workspaceId     String
-  name            String            // Pol taxta, Rika...
-  length          Decimal           @db.Decimal(8, 3)
-  width           Decimal           @db.Decimal(8, 3)
-  thickness       Decimal           @db.Decimal(8, 3)
-  volumePerPiece  Decimal           @db.Decimal(12, 6) // = L×W×T
+  id             String  @id @default(cuid())
+  workspaceId    String
+  name           String // Pol taxta, Rika...
+  length         Decimal @db.Decimal(8, 3)
+  width          Decimal @db.Decimal(8, 3)
+  thickness      Decimal @db.Decimal(8, 3)
+  volumePerPiece Decimal @db.Decimal(12, 6) // = L×W×T
 
-  workspace       Workspace         @relation(fields: [workspaceId], references: [id])
-  batches         ProductionBatch[]
-  finishedLots    FinishedGoodsLot[]
+  workspace    Workspace          @relation(fields: [workspaceId], references: [id])
+  batches      ProductionBatch[]
+  finishedLots FinishedGoodsLot[]
 
-  createdAt       DateTime          @default(now())
+  createdAt DateTime @default(now())
 
   @@index([workspaceId])
 }
 
 model ProductionBatch {
-  id             String           @id @default(cuid())
-  workspaceId    String
-  date           DateTime
-  inputLotId     String?          // xomashyo qaysi lotdan (ombordan yechiladi)
-  inputVolumeM3  Decimal          @db.Decimal(12, 4) // xomashyo
+  id              String   @id @default(cuid())
+  workspaceId     String
+  date            DateTime
+  inputLotId      String? // xomashyo qaysi lotdan (ombordan yechiladi)
+  inputVolumeM3   Decimal  @db.Decimal(12, 4) // xomashyo
   outputProductId String?
-  outputQuantity Int
-  yieldPercent   Decimal          @db.Decimal(5, 2)  // chiqim %
+  outputQuantity  Int
+  yieldPercent    Decimal  @db.Decimal(5, 2) // chiqim %
 
-  workspace      Workspace        @relation(fields: [workspaceId], references: [id])
-  inputLot       InventoryLot?    @relation(fields: [inputLotId], references: [id])
-  outputProduct  ProductTemplate? @relation(fields: [outputProductId], references: [id])
-  finishedLot    FinishedGoodsLot?
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id])
+  inputLot      InventoryLot?     @relation(fields: [inputLotId], references: [id])
+  outputProduct ProductTemplate?  @relation(fields: [outputProductId], references: [id])
+  finishedLot   FinishedGoodsLot?
 
-  createdAt      DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   @@index([workspaceId])
 }
 
 // Tayyor mahsulot ombori (xomashyo omboridan alohida) — dona hisobida.
 model FinishedGoodsLot {
-  id                  String          @id @default(cuid())
+  id                  String  @id @default(cuid())
   workspaceId         String
   productId           String
-  batchId             String?         @unique
+  batchId             String? @unique
   quantityRemaining   Int
-  unitCostUzsPerPiece Decimal         @db.Decimal(18, 2) // partiya tannarxi / dona
+  unitCostUzsPerPiece Decimal @db.Decimal(18, 2) // partiya tannarxi / dona
 
-  workspace           Workspace       @relation(fields: [workspaceId], references: [id])
-  product             ProductTemplate @relation(fields: [productId], references: [id])
-  batch               ProductionBatch? @relation(fields: [batchId], references: [id])
+  workspace Workspace        @relation(fields: [workspaceId], references: [id])
+  product   ProductTemplate  @relation(fields: [productId], references: [id])
+  batch     ProductionBatch? @relation(fields: [batchId], references: [id])
 
-  createdAt           DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@index([workspaceId])
 }
 
 model StockTransfer {
-  id              String       @id @default(cuid())
-  fromWorkspaceId String       // 1-biznes (daromad)
-  toWorkspaceId   String       // 2-biznes (xarajat)
-  lotId           String
-  volumeM3        Decimal      @db.Decimal(12, 4)
-  internalPriceUzs Decimal     @db.Decimal(18, 2) // ichki narx
-  date            DateTime
+  id               String   @id @default(cuid())
+  fromWorkspaceId  String // 1-biznes (daromad)
+  toWorkspaceId    String // 2-biznes (xarajat)
+  lotId            String
+  volumeM3         Decimal  @db.Decimal(12, 4)
+  internalPriceUzs Decimal  @db.Decimal(18, 2) // ichki narx
+  date             DateTime
 
-  fromWorkspace   Workspace    @relation("TransferFrom", fields: [fromWorkspaceId], references: [id])
-  toWorkspace     Workspace    @relation("TransferTo", fields: [toWorkspaceId], references: [id])
-  lot             InventoryLot @relation(fields: [lotId], references: [id])
+  fromWorkspace Workspace    @relation("TransferFrom", fields: [fromWorkspaceId], references: [id])
+  toWorkspace   Workspace    @relation("TransferTo", fields: [toWorkspaceId], references: [id])
+  lot           InventoryLot @relation(fields: [lotId], references: [id])
 
-  createdAt       DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   @@index([fromWorkspaceId])
   @@index([toWorkspaceId])
@@ -401,36 +401,36 @@ model StockTransfer {
 
 model Expense {
   id          String          @id @default(cuid())
-  workspaceId String?         // null = umumiy (keyin taqsimlanadi)
+  workspaceId String? // null = umumiy (keyin taqsimlanadi)
   category    ExpenseCategory
   amountUzs   Decimal         @db.Decimal(18, 2)
   date        DateTime
   description String?
   employeeId  String?
 
-  workspace   Workspace?      @relation(fields: [workspaceId], references: [id])
-  employee    Employee?       @relation(fields: [employeeId], references: [id])
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+  employee  Employee?  @relation(fields: [employeeId], references: [id])
 
-  createdAt   DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@index([workspaceId])
   @@index([category])
 }
 
 model Employee {
-  id           String           @id @default(cuid())
-  workspaceId  String?          // null = ikkala biznesga
+  id           String     @id @default(cuid())
+  workspaceId  String? // null = ikkala biznesga
   name         String
   phone        String?
   position     String?
-  salaryAmount Decimal          @db.Decimal(18, 2)
-  salaryType   SalaryType       @default(MONTHLY)
+  salaryAmount Decimal    @db.Decimal(18, 2)
+  salaryType   SalaryType @default(MONTHLY)
 
-  workspace    Workspace?       @relation(fields: [workspaceId], references: [id])
+  workspace      Workspace?      @relation(fields: [workspaceId], references: [id])
   salaryPayments SalaryPayment[]
-  expenses     Expense[]
+  expenses       Expense[]
 
-  createdAt    DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   @@index([workspaceId])
 }
@@ -439,12 +439,12 @@ model SalaryPayment {
   id         String   @id @default(cuid())
   employeeId String
   amountUzs  Decimal  @db.Decimal(18, 2)
-  period     String   // masalan "2026-06"
+  period     String // masalan "2026-06"
   date       DateTime
 
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([employeeId])
 }
@@ -458,28 +458,28 @@ model LedgerEntry {
   type        LedgerEntryType
   amountUzs   Decimal         @db.Decimal(18, 2) // + kirim / − chiqim
   date        DateTime
-  refType     String?         // bog'langan entity turi (Sale, Purchase...)
-  refId       String?         // bog'langan entity id
+  refType     String? // bog'langan entity turi (Sale, Purchase...)
+  refId       String? // bog'langan entity id
   description String?
 
   // Storno (bekor qilish) — asl yozuv o'chirilmaydi, teskari yozuv qo'shiladi
-  reversedById String?        @unique
-  reversedBy   LedgerEntry?   @relation("Storno", fields: [reversedById], references: [id])
-  reverses     LedgerEntry?   @relation("Storno")
+  reversedById String?      @unique
+  reversedBy   LedgerEntry? @relation("Storno", fields: [reversedById], references: [id])
+  reverses     LedgerEntry? @relation("Storno")
 
-  workspace   Workspace       @relation(fields: [workspaceId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
 
-  createdAt   DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@index([workspaceId])
   @@index([refType, refId])
 }
 
 model ExchangeRate {
-  id        String   @id @default(cuid())
-  date      DateTime @unique @db.Date
-  rubToUzs  Decimal  @db.Decimal(14, 6)
-  usdToUzs  Decimal  @db.Decimal(14, 6)
+  id       String   @id @default(cuid())
+  date     DateTime @unique @db.Date
+  rubToUzs Decimal  @db.Decimal(14, 6)
+  usdToUzs Decimal  @db.Decimal(14, 6)
 
   createdAt DateTime @default(now())
 }

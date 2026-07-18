@@ -17,6 +17,22 @@ type AuthPayload {
   workspaces: [WorkspaceBrief!]!
 }
 
+type ConsolidatedReport {
+  totalExpensesUzs: Float!
+  totalNetProfitUzs: Float!
+  totalSalesUzs: Float!
+  workspaces: [WorkspacePnl!]!
+}
+
+input CreateEmployeeInput {
+  isShared: Boolean = false
+  name: String!
+  phone: String
+  position: String
+  salaryAmount: Float!
+  salaryType: SalaryType!
+}
+
 input CreateExpenseInput {
   amountUzs: Float!
   category: ExpenseCategory!
@@ -98,6 +114,17 @@ type DefectRecord {
   volumeM3: Float!
 }
 
+type Employee {
+  createdAt: DateTime!
+  id: String!
+  name: String!
+  phone: String
+  position: String
+  salaryAmount: Float!
+  salaryType: SalaryType!
+  workspaceId: String
+}
+
 type Expense {
   amountUzs: Float!
   category: ExpenseCategory!
@@ -163,6 +190,7 @@ enum LotStatus {
 
 type Mutation {
   addPayment(input: AddPaymentInput!): Payment!
+  createEmployee(input: CreateEmployeeInput!): Employee!
   createExpense(input: CreateExpenseInput!): Expense!
   createProductTemplate(input: CreateProductTemplateInput!): ProductTemplate!
   createProductionBatch(input: CreateProductionBatchInput!): ProductionBatch!
@@ -171,7 +199,15 @@ type Mutation {
   createShipment(input: CreateShipmentInput!): Shipment!
   createTransfer(input: CreateTransferInput!): StockTransfer!
   login(input: LoginInput!): AuthPayload!
+  paySalary(input: PaySalaryInput!): SalaryPayment!
   recordDefect(input: RecordDefectInput!): DefectRecord!
+}
+
+input PaySalaryInput {
+  amountUzs: Float!
+  date: DateTime
+  employeeId: String!
+  period: String!
 }
 
 type Payment {
@@ -228,6 +264,8 @@ enum PurchaseSource {
 }
 
 type Query {
+  consolidatedReport: ConsolidatedReport!
+  employees: [Employee!]!
   expenses(category: ExpenseCategory): [Expense!]!
   finishedGoods: [FinishedGoodsLot!]!
   inventory: [InventoryLot!]!
@@ -249,6 +287,20 @@ input RecordDefectInput {
   lotId: String!
   reason: String
   volumeM3: Float!
+}
+
+type SalaryPayment {
+  amountUzs: Float!
+  date: DateTime!
+  employeeId: String!
+  id: String!
+  period: String!
+}
+
+enum SalaryType {
+  DAILY
+  MONTHLY
+  PER_PIECE
 }
 
 type Sale {
@@ -332,4 +384,15 @@ type WorkspaceBrief {
   name: String!
   role: String!
   type: String!
+}
+
+type WorkspacePnl {
+  expensesUzs: Float!
+  name: String!
+  netProfitUzs: Float!
+  salesUzs: Float!
+  soldCostUzs: Float!
+  transferInUzs: Float!
+  type: String!
+  workspaceId: String!
 }

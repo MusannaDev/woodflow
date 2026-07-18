@@ -4,6 +4,7 @@ import { CurrentWorkspace } from '../common/decorators/current-workspace.decorat
 import { GqlAuthGuard } from '../common/guards/gql-auth.guard';
 import { WorkspaceGuard } from '../common/guards/workspace.guard';
 import { TenantInterceptor } from '../common/tenant/tenant.interceptor';
+import { ConsolidatedReport } from './dto/consolidation.types';
 import { ShipmentPnl } from './dto/report.types';
 import { ReportsService } from './reports.service';
 
@@ -19,5 +20,11 @@ export class ReportsResolver {
     @Args('shipmentId') shipmentId: string,
   ): Promise<ShipmentPnl> {
     return this.reportsService.shipmentPnl(workspaceId, shipmentId);
+  }
+
+  /** Faqat OWNER: ikkala biznes jami (service ichida tekshiriladi). */
+  @Query(() => ConsolidatedReport)
+  consolidatedReport(): Promise<ConsolidatedReport> {
+    return this.reportsService.consolidatedReport();
   }
 }

@@ -5,7 +5,14 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { InventoryModule } from './inventory/inventory.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ProductionModule } from './production/production.module';
+import { PurchasesModule } from './purchases/purchases.module';
+import { ReportsModule } from './reports/reports.module';
+import { SalesModule } from './sales/sales.module';
+import { ShipmentsModule } from './shipments/shipments.module';
+import { TransfersModule } from './transfers/transfers.module';
 
 @Module({
   imports: [
@@ -21,6 +28,13 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     AuthModule,
     ExpensesModule,
+    ShipmentsModule,
+    PurchasesModule,
+    InventoryModule,
+    SalesModule,
+    ReportsModule,
+    TransfersModule,
+    ProductionModule,
   ],
 })
 export class AppModule {}

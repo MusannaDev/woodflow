@@ -20,15 +20,20 @@ const TENANT_MODELS = new Set<string>([
   'Sale',
   'ProductTemplate',
   'ProductionBatch',
+  'FinishedGoodsLot',
   'LedgerEntry',
 ]);
 
+// DIQQAT: findUnique/findUniqueOrThrow shu ro'yxatda YO'Q. Prisma ularning
+// where'iga faqat unique maydonlarni qabul qiladi — workspaceId (unique emas)
+// qo'shsak, xato beradi. Bitta yozuvni tenant-xavfsiz olish uchun service'da
+// findFirst({ where: { id, workspaceId } }) ishlatamiz. Xuddi shu sabab
+// update/delete/upsert ham avtomatik filtrlanmaydi — updateMany/deleteMany
+// (yoki avval findFirst tekshiruvi) bilan aniq workspaceId beramiz.
 const READ_OPS = new Set<string>([
   'findFirst',
   'findFirstOrThrow',
   'findMany',
-  'findUnique',
-  'findUniqueOrThrow',
   'count',
   'aggregate',
   'groupBy',
@@ -61,9 +66,8 @@ function tenantExtension(base: PrismaClient) {
           } else if (operation === 'createMany') {
             const data = Array.isArray(args.data) ? args.data : [args.data];
             args.data = data.map((d: Record<string, unknown>) => ({ workspaceId, ...d }));
-          } else if (operation === 'update' || operation === 'delete' || operation === 'upsert') {
-            args.where = { ...(args.where ?? {}), workspaceId };
           }
+          // findUnique/update/delete/upsert — atayin tegilmaydi (yuqoridagi izohga qarang)
           return query(args);
         },
       },

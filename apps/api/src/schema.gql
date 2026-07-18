@@ -2,6 +2,14 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+input AddPaymentInput {
+  amount: Float!
+  currency: Currency!
+  date: DateTime
+  exchangeRate: Float
+  saleId: String!
+}
+
 type AuthPayload {
   name: String!
   token: String!
@@ -18,10 +26,77 @@ input CreateExpenseInput {
   isShared: Boolean = false
 }
 
+input CreateProductTemplateInput {
+  length: Float!
+  name: String!
+  thickness: Float!
+  width: Float!
+}
+
+input CreateProductionBatchInput {
+  date: DateTime
+  inputLotId: String!
+  inputVolumeM3: Float!
+  outputProductId: String!
+  outputQuantity: Int!
+}
+
+input CreatePurchaseInput {
+  currency: Currency!
+  date: DateTime!
+  exchangeRate: Float
+  grade: String!
+  shipmentId: String
+  source: PurchaseSource!
+  supplierId: String
+  unitPrice: Float!
+  volumeM3: Float!
+  woodType: String!
+}
+
+input CreateSaleInput {
+  customerId: String
+  date: DateTime!
+  items: [SaleItemInput!]!
+  saleType: SaleType!
+}
+
+input CreateShipmentInput {
+  arrivalDate: DateTime!
+  customsCost: Float = 0
+  ownerName: String!
+  ownerPhone: String
+  transportCost: Float = 0
+  truckColor: String
+  truckNumber: String!
+}
+
+input CreateTransferInput {
+  date: DateTime
+  internalPriceUzs: Float!
+  lotId: String!
+  toWorkspaceId: String!
+  volumeM3: Float!
+}
+
+enum Currency {
+  RUB
+  USD
+  UZS
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
 scalar DateTime
+
+type DefectRecord {
+  date: DateTime!
+  id: String!
+  lotId: String!
+  reason: String
+  volumeM3: Float!
+}
 
 type Expense {
   amountUzs: Float!
@@ -46,19 +121,210 @@ enum ExpenseCategory {
   WATER
 }
 
+type FinishedGoodsLot {
+  batchId: String
+  createdAt: DateTime!
+  id: String!
+  productId: String!
+  productName: String!
+  quantityRemaining: Int!
+  unitCostUzsPerPiece: Float!
+}
+
+type InventoryLot {
+  createdAt: DateTime!
+  grade: String!
+  id: String!
+  source: String
+  status: LotStatus!
+  unitCostUzsPerM3: Float!
+  volumeM3Remaining: Float!
+  woodType: String!
+}
+
+type InventorySummary {
+  defectM3: Float!
+  lotCount: Int!
+  totalRemainingM3: Float!
+}
+
 input LoginInput {
   password: String!
   phone: String!
 }
 
+enum LotStatus {
+  AVAILABLE
+  DEFECT
+  LOW
+  RESERVED
+  SOLD_OUT
+}
+
 type Mutation {
+  addPayment(input: AddPaymentInput!): Payment!
   createExpense(input: CreateExpenseInput!): Expense!
+  createProductTemplate(input: CreateProductTemplateInput!): ProductTemplate!
+  createProductionBatch(input: CreateProductionBatchInput!): ProductionBatch!
+  createPurchase(input: CreatePurchaseInput!): Purchase!
+  createSale(input: CreateSaleInput!): Sale!
+  createShipment(input: CreateShipmentInput!): Shipment!
+  createTransfer(input: CreateTransferInput!): StockTransfer!
   login(input: LoginInput!): AuthPayload!
+  recordDefect(input: RecordDefectInput!): DefectRecord!
+}
+
+type Payment {
+  amount: Float!
+  amountUzs: Float!
+  currency: Currency!
+  date: DateTime!
+  exchangeRate: Float!
+  id: String!
+}
+
+type ProductTemplate {
+  createdAt: DateTime!
+  id: String!
+  length: Float!
+  name: String!
+  thickness: Float!
+  volumePerPiece: Float!
+  width: Float!
+}
+
+type ProductionBatch {
+  createdAt: DateTime!
+  date: DateTime!
+  id: String!
+  inputLotId: String
+  inputVolumeM3: Float!
+  outputProductId: String
+  outputQuantity: Int!
+  outputVolumeM3: Float!
+  yieldPercent: Float!
+}
+
+type Purchase {
+  createdAt: DateTime!
+  currency: Currency!
+  date: DateTime!
+  exchangeRate: Float!
+  grade: String!
+  id: String!
+  shipmentId: String
+  source: PurchaseSource!
+  supplierId: String
+  totalCostUzs: Float!
+  unitPrice: Float!
+  volumeM3: Float!
+  woodType: String!
+}
+
+enum PurchaseSource {
+  INTERNAL_TRANSFER
+  LOCAL_WHOLESALE
+  RUSSIA_IMPORT
 }
 
 type Query {
   expenses(category: ExpenseCategory): [Expense!]!
+  finishedGoods: [FinishedGoodsLot!]!
+  inventory: [InventoryLot!]!
+  inventorySummary: InventorySummary!
   me: String!
+  productTemplates: [ProductTemplate!]!
+  productionBatches: [ProductionBatch!]!
+  purchases: [Purchase!]!
+  sale(id: String!): Sale!
+  sales: [Sale!]!
+  shipment(id: String!): Shipment!
+  shipmentPnl(shipmentId: String!): ShipmentPnl!
+  shipments: [Shipment!]!
+  transfers: [StockTransfer!]!
+}
+
+input RecordDefectInput {
+  date: DateTime
+  lotId: String!
+  reason: String
+  volumeM3: Float!
+}
+
+type Sale {
+  createdAt: DateTime!
+  customerId: String
+  date: DateTime!
+  debtUzs: Float!
+  id: String!
+  items: [SaleItem!]!
+  paidUzs: Float!
+  payments: [Payment!]!
+  saleType: SaleType!
+  totalPriceUzs: Float!
+}
+
+type SaleItem {
+  id: String!
+  length: Float!
+  lineTotalUzs: Float!
+  lotId: String!
+  quantity: Int!
+  thickness: Float!
+  unitPriceUzs: Float!
+  volumeM3: Float!
+  width: Float!
+}
+
+input SaleItemInput {
+  length: Float!
+  lotId: String!
+  quantity: Int!
+  thickness: Float!
+  unitPriceUzs: Float!
+  width: Float!
+}
+
+enum SaleType {
+  PER_CUBE
+  PER_PIECE
+  WHOLESALE
+}
+
+type Shipment {
+  arrivalDate: DateTime!
+  createdAt: DateTime!
+  customsCost: Float!
+  id: String!
+  ownerName: String!
+  ownerPhone: String
+  transportCost: Float!
+  truckColor: String
+  truckNumber: String!
+}
+
+type ShipmentPnl {
+  customsUzs: Float!
+  defectLossUzs: Float!
+  defectVolumeM3: Float!
+  netProfitUzs: Float!
+  salesUzs: Float!
+  shipmentId: String!
+  soldCostUzs: Float!
+  soldVolumeM3: Float!
+  transportUzs: Float!
+  truckNumber: String!
+}
+
+type StockTransfer {
+  createdAt: DateTime!
+  date: DateTime!
+  fromWorkspaceId: String!
+  id: String!
+  internalPriceUzs: Float!
+  lotId: String!
+  toWorkspaceId: String!
+  volumeM3: Float!
 }
 
 type WorkspaceBrief {

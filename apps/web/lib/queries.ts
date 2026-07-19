@@ -162,6 +162,165 @@ export const CREATE_SHIPMENT = gql`
   }
 `;
 
+export const TOLOVLAR_PAGE = gql`
+  query TolovlarPage {
+    sales {
+      id
+      totalPriceUzs
+      paidUzs
+      debtUzs
+      date
+      saleType
+      customerId
+      payments {
+        id
+        amount
+        currency
+        exchangeRate
+        amountUzs
+        date
+      }
+    }
+    customers {
+      id
+      name
+    }
+  }
+`;
+
+export const ADD_PAYMENT = gql`
+  mutation AddPayment($input: AddPaymentInput!) {
+    addPayment(input: $input) {
+      id
+      amountUzs
+    }
+  }
+`;
+
+export const MIJOZLAR_PAGE = gql`
+  query MijozlarPage {
+    customers {
+      id
+      name
+      phone
+      salesCount
+      debtUzs
+      createdAt
+    }
+  }
+`;
+
+export const CREATE_CUSTOMER = gql`
+  mutation CreateCustomer($input: CreateCustomerInput!) {
+    createCustomer(input: $input) {
+      id
+      name
+    }
+  }
+`;
+
+export const TEMPLATES_PAGE = gql`
+  query TemplatesPage {
+    productTemplates {
+      id
+      name
+      length
+      width
+      thickness
+      volumePerPiece
+    }
+  }
+`;
+
+export const CREATE_TEMPLATE = gql`
+  mutation CreateTemplate($input: CreateProductTemplateInput!) {
+    createProductTemplate(input: $input) {
+      id
+      name
+      volumePerPiece
+    }
+  }
+`;
+
+export const PRODUCTION_PAGE = gql`
+  query ProductionPage {
+    productionBatches {
+      id
+      date
+      inputVolumeM3
+      outputQuantity
+      outputVolumeM3
+      yieldPercent
+      outputProductId
+    }
+    productTemplates {
+      id
+      name
+      volumePerPiece
+    }
+    inventory {
+      id
+      woodType
+      grade
+      source
+      volumeM3Remaining
+    }
+  }
+`;
+
+export const CREATE_BATCH = gql`
+  mutation CreateBatch($input: CreateProductionBatchInput!) {
+    createProductionBatch(input: $input) {
+      id
+      yieldPercent
+      outputVolumeM3
+    }
+  }
+`;
+
+export const FINISHED_GOODS = gql`
+  query FinishedGoods {
+    finishedGoods {
+      id
+      productName
+      quantityRemaining
+      unitCostUzsPerPiece
+      createdAt
+    }
+  }
+`;
+
+export const TRANSFERS_PAGE = gql`
+  query TransfersPage {
+    transfers {
+      id
+      fromWorkspaceId
+      toWorkspaceId
+      lotId
+      volumeM3
+      internalPriceUzs
+      date
+    }
+    inventory {
+      id
+      woodType
+      grade
+      source
+      volumeM3Remaining
+    }
+  }
+`;
+
+export const CREATE_TRANSFER = gql`
+  mutation CreateTransfer($input: CreateTransferInput!) {
+    createTransfer(input: $input) {
+      id
+      volumeM3
+      internalPriceUzs
+    }
+  }
+`;
+
 export const DASHBOARD = gql`
   query Dashboard {
     sales {

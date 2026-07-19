@@ -9,11 +9,29 @@ import { session, WorkspaceBrief } from '../../lib/session';
  * Workspace almashtirgich — rang ham birga almashadi (amber ↔ yashil).
  */
 
-const MENU: { href: string; label: string; icon: string }[] = [
+type MenuItem = { href: string; label: string; icon: string };
+
+/** Menyu joriy workspace'ga qarab o'zgaradi (UI hujjati §3). */
+const MENU_WOOD: MenuItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: '▦' },
   { href: '/furalar', label: 'Furalar', icon: '▤' },
   { href: '/ombor', label: 'Ombor', icon: '▣' },
   { href: '/savdo', label: 'Savdo', icon: '◉' },
+  { href: '/tolovlar', label: "To'lovlar", icon: '◇' },
+  { href: '/transfer', label: 'Ichki transfer', icon: '⇄' },
+  { href: '/mijozlar', label: 'Mijozlar', icon: '◎' },
+  { href: '/xarajatlar', label: 'Xarajatlar', icon: '◈' },
+];
+
+const MENU_LUMBER: MenuItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: '▦' },
+  { href: '/ishlab-chiqarish', label: 'Ishlab chiqarish', icon: '⚙' },
+  { href: '/shablonlar', label: 'Shablonlar', icon: '▱' },
+  { href: '/tayyor-ombor', label: 'Tayyor ombor', icon: '▥' },
+  { href: '/transfer', label: 'Ichki transfer', icon: '⇄' },
+  { href: '/ombor', label: 'Xomashyo ombori', icon: '▣' },
+  { href: '/savdo', label: 'Savdo', icon: '◉' },
+  { href: '/tolovlar', label: "To'lovlar", icon: '◇' },
   { href: '/mijozlar', label: 'Mijozlar', icon: '◎' },
   { href: '/xarajatlar', label: 'Xarajatlar', icon: '◈' },
 ];
@@ -96,7 +114,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex-1 px-3 space-y-0.5">
-          {MENU.map((m) => (
+          {(ws.type === 'LUMBER_PRODUCTION' ? MENU_LUMBER : MENU_WOOD).map((m) => (
             <a
               key={m.href}
               href={m.href}

@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
+import { BusinessModule } from './business/business.module';
 import { GqlAuthGuard } from './common/guards/gql-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { CustomersModule } from './customers/customers.module';
@@ -34,6 +35,7 @@ import { TransfersModule } from './transfers/transfers.module';
     }),
     PrismaModule,
     AuthModule,
+    BusinessModule,
     ExpensesModule,
     ShipmentsModule,
     PurchasesModule,

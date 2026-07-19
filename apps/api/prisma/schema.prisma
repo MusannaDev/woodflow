@@ -95,15 +95,85 @@ enum LotStatus {
 
 // ──────────────────── MULTI-TENANCY / USERS ───────────────────
 
+// Platforma darajasidagi rol: CEO — faqat bitta (Adam), qolganlar USER.
+enum PlatformRole {
+  CEO
+  USER
+}
+
+enum BusinessStatus {
+  PENDING // CEO tasdig'ini kutmoqda
+  ACTIVE
+  REJECTED
+}
+
+enum JoinRequestType {
+  OWNER_SIGNUP // yangi biznes egasi — CEO tasdiqlaydi
+  WORKER_JOIN // ishchi kirishi — biznes egasi tasdiqlaydi
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id           String       @id @default(cuid())
   name         String
   phone        String       @unique
   email        String?      @unique
   passwordHash String
+  platformRole PlatformRole @default(USER)
   memberships  Membership[]
+  ownedBusinesses Business[] @relation("BusinessOwner")
+  joinRequests JoinRequest[] @relation("Requester")
+  decidedRequests JoinRequest[] @relation("Decider")
+  employeeLinks Employee[]
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+}
+
+// Biznes — owner'ning brendi: nom + logo. Ikkala workspace shu ostida.
+model Business {
+  id        String         @id @default(cuid())
+  name      String
+  logoUrl   String?
+  ownerId   String
+  status    BusinessStatus @default(PENDING)
+
+  owner        User          @relation("BusinessOwner", fields: [ownerId], references: [id])
+  workspaces   Workspace[]
+  joinRequests JoinRequest[]
+  employees    Employee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+// Tasdiqlash so'rovlari: OWNER_SIGNUP → CEO; WORKER_JOIN → biznes egasi.
+model JoinRequest {
+  id         String          @id @default(cuid())
+  type       JoinRequestType
+  userId     String
+  businessId String
+  employeeId String? // WORKER_JOIN'da mos kelgan ishchi yozuvi
+  status     RequestStatus   @default(PENDING)
+  decidedById String?
+  decidedAt  DateTime?
+
+  user      User      @relation("Requester", fields: [userId], references: [id])
+  business  Business  @relation(fields: [businessId], references: [id])
+  employee  Employee? @relation(fields: [employeeId], references: [id])
+  decidedBy User?     @relation("Decider", fields: [decidedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId, status])
+  @@index([userId])
 }
 
 model Workspace {
@@ -111,6 +181,9 @@ model Workspace {
   name         String
   type         WorkspaceType
   baseCurrency Currency      @default(UZS)
+  businessId   String?
+
+  business Business? @relation(fields: [businessId], references: [id])
 
   memberships       Membership[]
   suppliers         Supplier[]
@@ -421,7 +494,9 @@ model Expense {
 
 model Employee {
   id           String     @id @default(cuid())
-  workspaceId  String? // null = ikkala biznesga
+  workspaceId  String? // null = ikkala workspace (bitta biznes ichida)
+  businessId   String? // qaysi biznesning ishchisi (worker-match uchun)
+  userId       String? // tasdiqlangach bog'lanadigan User hisobi
   name         String
   phone        String?
   position     String?
@@ -429,12 +504,17 @@ model Employee {
   salaryType   SalaryType @default(MONTHLY)
 
   workspace      Workspace?      @relation(fields: [workspaceId], references: [id])
+  business       Business?       @relation(fields: [businessId], references: [id])
+  user           User?           @relation(fields: [userId], references: [id])
   salaryPayments SalaryPayment[]
   expenses       Expense[]
+  joinRequests   JoinRequest[]
 
   createdAt DateTime @default(now())
 
   @@index([workspaceId])
+  @@index([businessId])
+  @@index([phone])
 }
 
 model SalaryPayment {

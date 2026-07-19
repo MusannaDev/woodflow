@@ -7,10 +7,10 @@ import { FormEvent, useState } from 'react';
 import { BrandPanel } from '../../components/auth/BrandPanel';
 import { WorkspacePicker } from '../../components/auth/WorkspacePicker';
 import { LOGIN } from '../../lib/queries';
-import { session, WorkspaceBrief } from '../../lib/session';
+import { AuthData, session, WorkspaceBrief } from '../../lib/session';
 
 interface LoginData {
-  login: { token: string; name: string; workspaces: WorkspaceBrief[] };
+  login: AuthData;
 }
 
 export default function LoginPage() {
@@ -29,8 +29,10 @@ export default function LoginPage() {
     const data = res?.data?.login;
     if (!data) return;
 
-    session.save(data.token, data.name, data.workspaces);
-    if (data.workspaces.length > 1) {
+    session.save(data);
+    if (data.pending) {
+      router.replace('/kutish');
+    } else if (data.workspaces.length > 1) {
       setPickList(data.workspaces);
     } else {
       router.replace('/dashboard');

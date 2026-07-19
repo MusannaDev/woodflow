@@ -2,7 +2,12 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
-import { session, WorkspaceBrief } from '../../lib/session';
+import {
+  API_BASE,
+  BusinessBrief,
+  session,
+  WorkspaceBrief,
+} from '../../lib/session';
 
 /**
  * App Shell — Luxury Premium + Classic (glass effekt).
@@ -62,9 +67,16 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
   const [mobWsOpen, setMobWsOpen] = useState(false); // mobil switcher
   const [moreOpen, setMoreOpen] = useState(false); // mobil "Ko'proq" sheet
 
+  const [biz, setBiz] = useState<BusinessBrief | null>(null);
+  const [platformRole, setPlatformRole] = useState('USER');
+
   useEffect(() => {
     if (!session.token()) {
       router.replace('/login');
+      return;
+    }
+    if (session.pending()) {
+      router.replace('/kutish'); // tasdiq kutilmoqda — ichkariga kirmaydi
       return;
     }
     const current = session.currentWorkspace();
@@ -75,6 +87,8 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
     }
     setWs(current);
     setList(session.workspaces());
+    setBiz(session.business());
+    setPlatformRole(session.platformRole());
   }, [router]);
 
   function switchWs(target: WorkspaceBrief) {
@@ -92,9 +106,33 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
   const menu = ws.type === 'LUMBER_PRODUCTION' ? MENU_LUMBER : MENU_WOOD;
   const tabs = ws.type === 'LUMBER_PRODUCTION' ? TABS_LUMBER : TABS_WOOD;
   const isOwner = ws.role === 'OWNER';
-  const visibleMenu = menu.filter(
-    (m) => m.href !== '/konsolidatsiya' || isOwner,
-  );
+  const visibleMenu = [
+    ...menu.filter((m) => m.href !== '/konsolidatsiya' || isOwner),
+    ...(isOwner
+      ? [{ href: '/sozlamalar', label: 'Sozlamalar', icon: '⚙' }]
+      : []),
+    ...(platformRole === 'CEO'
+      ? [{ href: '/ceo', label: 'CEO panel', icon: '⭑' }]
+      : []),
+  ];
+
+  /** Biznes brendi: logo (yuklangan bo'lsa) + nom. */
+  const brandName = biz?.name ?? 'WoodFlow';
+  const BrandLogo = ({ size }: { size: string }) =>
+    biz?.logoUrl ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={`${API_BASE}${biz.logoUrl}`}
+        alt={brandName}
+        className={`${size} rounded-lg object-cover flex-none`}
+      />
+    ) : (
+      <span
+        className={`${size} rounded-lg bg-gradient-to-br from-amber-300 to-amber-700 grid place-items-center text-white text-xs font-bold flex-none`}
+      >
+        {brandName.charAt(0).toUpperCase()}
+      </span>
+    );
 
   const WsDot = ({ type }: { type: string }) => (
     <span
@@ -122,8 +160,8 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
           href="/"
           className="px-5 pt-5 pb-3 flex items-center gap-2.5 text-white font-bold text-lg hover:opacity-80 transition-opacity"
         >
-          <span className="w-3 h-3 rounded-full bg-gradient-to-br from-amber-300 to-amber-700 shadow-[0_0_14px_rgba(232,176,106,0.6)]" />
-          WoodFlow
+          <BrandLogo size="w-8 h-8" />
+          <span className="truncate">{brandName}</span>
         </a>
 
         {/* Workspace almashtirgich */}
@@ -199,9 +237,9 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
 
         {/* ── MOBIL: glass top-header (workspace almashtirgich bilan) ── */}
         <header className="md:hidden glass sticky top-0 z-40 px-4 py-2.5 flex items-center gap-2.5">
-          <a href="/" className="flex items-center gap-2 font-bold">
-            <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-amber-300 to-amber-700" />
-            WoodFlow
+          <a href="/" className="flex items-center gap-2 font-bold min-w-0">
+            <BrandLogo size="w-7 h-7" />
+            <span className="truncate max-w-24 text-sm">{brandName}</span>
           </a>
           <div className="relative flex-1 flex justify-center">
             <button

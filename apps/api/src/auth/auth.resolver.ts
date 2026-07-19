@@ -30,4 +30,10 @@ export class AuthResolver {
   me(@CurrentUser() user: AuthUser): string {
     return user.userId;
   }
+
+  /** Joriy sessiya holatini qayta oladi (kutish ekrani yangilash uchun). */
+  @Query(() => AuthPayload)
+  myAuth(@CurrentUser() user: AuthUser): Promise<AuthPayload> {
+    return this.auth.buildPayload(user.userId);
+  }
 }

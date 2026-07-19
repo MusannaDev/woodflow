@@ -1,33 +1,102 @@
 import { gql } from '@apollo/client';
 
+const AUTH_FIELDS = `
+  token
+  userId
+  name
+  platformRole
+  pending
+  workspaces {
+    id
+    name
+    type
+    role
+  }
+  business {
+    id
+    name
+    logoUrl
+    status
+  }
+`;
+
 export const LOGIN = gql`
   mutation Login($input: LoginInput!) {
-    login(input: $input) {
-      token
-      userId
-      name
-      workspaces {
-        id
-        name
-        type
-        role
-      }
-    }
+    login(input: $input) { ${AUTH_FIELDS} }
   }
 `;
 
 export const REGISTER = gql`
   mutation Register($input: RegisterInput!) {
-    register(input: $input) {
-      token
-      userId
+    register(input: $input) { ${AUTH_FIELDS} }
+  }
+`;
+
+export const MY_AUTH = gql`
+  query MyAuth {
+    myAuth { ${AUTH_FIELDS} }
+  }
+`;
+
+export const PENDING_OWNER_REQUESTS = gql`
+  query PendingOwnerRequests {
+    pendingOwnerRequests {
+      id
+      userName
+      userPhone
+      businessName
+      createdAt
+    }
+  }
+`;
+
+export const DECIDE_OWNER_REQUEST = gql`
+  mutation DecideOwnerRequest($input: DecideRequestInput!) {
+    decideOwnerRequest(input: $input) {
+      id
+      status
+    }
+  }
+`;
+
+export const PENDING_WORKER_REQUESTS = gql`
+  query PendingWorkerRequests {
+    pendingWorkerRequests {
+      id
+      userName
+      userPhone
+      employeeName
+      createdAt
+    }
+  }
+`;
+
+export const DECIDE_WORKER_REQUEST = gql`
+  mutation DecideWorkerRequest($input: DecideRequestInput!) {
+    decideWorkerRequest(input: $input) {
+      id
+      status
+    }
+  }
+`;
+
+export const MY_BUSINESS = gql`
+  query MyBusiness {
+    myBusiness {
+      id
       name
-      workspaces {
-        id
-        name
-        type
-        role
-      }
+      logoUrl
+      status
+    }
+  }
+`;
+
+export const UPDATE_BUSINESS = gql`
+  mutation UpdateBusiness($input: UpdateBusinessInput!) {
+    updateBusiness(input: $input) {
+      id
+      name
+      logoUrl
     }
   }
 `;

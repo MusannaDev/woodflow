@@ -28,9 +28,16 @@ export class EmployeesService {
     workspaceId: string,
     input: CreateEmployeeInput,
   ): Promise<Employee> {
+    // Joriy workspace'ning biznesi — worker-match uchun saqlanadi
+    const ws = await this.prisma.raw.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { businessId: true },
+    });
+
     const row = await this.prisma.raw.employee.create({
       data: {
         workspaceId: input.isShared ? null : workspaceId,
+        businessId: ws?.businessId ?? null,
         name: input.name,
         phone: input.phone,
         position: input.position,
@@ -38,6 +45,34 @@ export class EmployeesService {
         salaryType: input.salaryType,
       },
     });
+
+    // Shu telefon bilan KUTAYOTGAN user bo'lsa — egaga avto so'rov ochamiz
+    if (input.phone && ws?.businessId) {
+      const waiting = await this.prisma.raw.user.findFirst({
+        where: {
+          phone: input.phone,
+          platformRole: 'USER',
+          memberships: { none: {} },
+          ownedBusinesses: { none: {} },
+        },
+      });
+      if (waiting) {
+        const already = await this.prisma.raw.joinRequest.findFirst({
+          where: { userId: waiting.id, status: 'PENDING' },
+        });
+        if (!already) {
+          await this.prisma.raw.joinRequest.create({
+            data: {
+              type: 'WORKER_JOIN',
+              userId: waiting.id,
+              businessId: ws.businessId,
+              employeeId: row.id,
+            },
+          });
+        }
+      }
+    }
+
     return EmployeesService.toGql(row);
   }
 

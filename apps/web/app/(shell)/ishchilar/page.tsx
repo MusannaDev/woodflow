@@ -4,9 +4,12 @@ import { useMutation, useQuery } from '@apollo/client';
 import { Fragment, FormEvent, useState } from 'react';
 import {
   CREATE_EMPLOYEE,
+  DECIDE_WORKER_REQUEST,
   ISHCHILAR_PAGE,
   PAY_SALARY,
+  PENDING_WORKER_REQUESTS,
 } from '../../../lib/queries';
+import { session } from '../../../lib/session';
 
 /**
  * Ishchilar (UI hujjati §7.8): ism, telefon, lavozim, oylik turi.
@@ -42,11 +45,28 @@ const currentPeriod = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
+interface WorkerRequestRow {
+  id: string;
+  userName: string;
+  userPhone: string;
+  employeeName: string | null;
+  createdAt: string;
+}
+
 export default function IshchilarPage() {
   const { data, loading, error, refetch } =
     useQuery<{ employees: EmployeeRow[] }>(ISHCHILAR_PAGE);
   const [createEmployee, { loading: creating }] = useMutation(CREATE_EMPLOYEE);
   const [paySalary, { loading: paying }] = useMutation(PAY_SALARY);
+
+  // Ishchi kirish so'rovlari — faqat egasi uchun
+  const isOwner = session.currentWorkspace()?.role === 'OWNER';
+  const { data: reqData, refetch: refetchReqs } = useQuery<{
+    pendingWorkerRequests: WorkerRequestRow[];
+  }>(PENDING_WORKER_REQUESTS, { skip: !isOwner });
+  const [decideWorker, { loading: deciding }] = useMutation(
+    DECIDE_WORKER_REQUEST,
+  );
 
   // Yangi ishchi formasi
   const [name, setName] = useState('');
@@ -122,15 +142,83 @@ export default function IshchilarPage() {
     }
   }
 
+  async function onDecideWorker(req: WorkerRequestRow, approve: boolean) {
+    setMsg(null);
+    try {
+      await decideWorker({
+        variables: { input: { requestId: req.id, approve } },
+      });
+      setMsg({
+        ok: approve,
+        text: approve
+          ? `${req.userName} tasdiqlandi — endi ishchi sifatida kira oladi.`
+          : `${req.userName} so'rovi rad etildi.`,
+      });
+      await Promise.all([refetchReqs(), refetch()]);
+    } catch (err) {
+      setMsg({
+        ok: false,
+        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+      });
+    }
+  }
+
   if (loading) return <p className="text-neutral-500">Yuklanmoqda…</p>;
   if (error)
     return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
 
   const employees = data?.employees ?? [];
+  const workerRequests = reqData?.pendingWorkerRequests ?? [];
 
   return (
     <div className="grid gap-6">
       <h1 className="text-xl font-bold">Ishchilar</h1>
+
+      {/* ── Kirish so'rovlari (egasi tasdiqlaydi) ── */}
+      {workerRequests.length > 0 && (
+        <section className="card overflow-hidden border-amber-200">
+          <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm flex items-center gap-2">
+            🔔 Kirish so&apos;rovlari
+            <span className="text-[11px] font-bold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">
+              {workerRequests.length}
+            </span>
+          </h2>
+          <ul className="divide-y divide-neutral-100">
+            {workerRequests.map((r) => (
+              <li
+                key={r.id}
+                className="px-5 py-3.5 flex items-center gap-3 flex-wrap"
+              >
+                <span className="flex-1 min-w-44">
+                  <span className="block text-sm font-semibold">
+                    {r.userName}
+                  </span>
+                  <span className="block text-xs text-neutral-500">
+                    {r.userPhone}
+                    {r.employeeName ? ` · ishchi yozuvi: ${r.employeeName}` : ''}
+                  </span>
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    disabled={deciding}
+                    onClick={() => onDecideWorker(r, true)}
+                    className="rounded-xl bg-emerald-600 text-white px-3.5 py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
+                  >
+                    ✓ Tasdiqlash
+                  </button>
+                  <button
+                    disabled={deciding}
+                    onClick={() => onDecideWorker(r, false)}
+                    className="rounded-xl border border-red-200 text-red-600 px-3.5 py-1.5 text-xs font-semibold hover:bg-red-50 disabled:opacity-40 transition-colors"
+                  >
+                    ✕ Rad etish
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {msg && (
         <p

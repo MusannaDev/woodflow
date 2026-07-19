@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -18,85 +19,132 @@ export class AuthService {
   async login(input: LoginInput): Promise<AuthPayload> {
     const user = await this.prisma.raw.user.findUnique({
       where: { phone: input.phone },
-      include: { memberships: { include: { workspace: true } } },
     });
     if (!user) {
       throw new UnauthorizedException('Telefon yoki parol noto‘g‘ri.');
     }
-
     const ok = await bcrypt.compare(input.password, user.passwordHash);
     if (!ok) {
       throw new UnauthorizedException('Telefon yoki parol noto‘g‘ri.');
     }
-
-    const token = await this.jwt.signAsync({ sub: user.id, phone: user.phone });
-
-    return {
-      token,
-      userId: user.id,
-      name: user.name,
-      workspaces: user.memberships.map((m) => ({
-        id: m.workspace.id,
-        name: m.workspace.name,
-        type: m.workspace.type,
-        role: m.role,
-      })),
-    };
+    return this.buildPayload(user.id);
   }
 
   /**
-   * Ro'yxatdan o'tish: yangi foydalanuvchi + ikkita workspace
-   * ("Yog'och sotuvi" va "Taxta sotuvi") + OWNER a'zoliklar — atomik.
+   * Ro'yxatdan o'tish:
+   *  OWNER  → user + Business(PENDING) + OWNER_SIGNUP so'rovi (CEO tasdiqlaydi).
+   *           Workspace'lar FAQAT tasdiqdan keyin ochiladi.
+   *  WORKER → user; telefon biror biznes ishchisiga mos kelsa WORKER_JOIN
+   *           so'rovi (egasi tasdiqlaydi), aks holda kutish holati.
    */
   async register(input: RegisterInput): Promise<AuthPayload> {
     const exists = await this.prisma.raw.user.findUnique({
       where: { phone: input.phone },
     });
     if (exists) {
-      throw new ConflictException(
-        'Bu telefon raqam allaqachon ro‘yxatdan o‘tgan.',
-      );
+      throw new ConflictException('Bu telefon raqam allaqachon ro‘yxatdan o‘tgan.');
+    }
+    if (input.accountType === 'OWNER' && !input.businessName?.trim()) {
+      throw new BadRequestException('Biznes nomini kiriting.');
     }
 
     const passwordHash = await bcrypt.hash(input.password, 10);
 
-    const { user, workspaces } = await this.prisma.raw.$transaction(
-      async (tx) => {
-        const u = await tx.user.create({
-          data: { name: input.name, phone: input.phone, passwordHash },
+    const user = await this.prisma.raw.$transaction(async (tx) => {
+      const u = await tx.user.create({
+        data: { name: input.name, phone: input.phone, passwordHash },
+      });
+
+      if (input.accountType === 'OWNER') {
+        const business = await tx.business.create({
+          data: {
+            name: input.businessName!.trim(),
+            ownerId: u.id,
+            status: 'PENDING',
+          },
         });
-        const wood = await tx.workspace.create({
-          data: { name: 'Yog‘och sotuvi', type: 'WOOD_TRADING' },
+        await tx.joinRequest.create({
+          data: { type: 'OWNER_SIGNUP', userId: u.id, businessId: business.id },
         });
-        const lumber = await tx.workspace.create({
-          data: { name: 'Taxta sotuvi', type: 'LUMBER_PRODUCTION' },
+      } else {
+        // WORKER: telefon bo'yicha bog'lanmagan ishchi yozuvini qidiramiz
+        const employee = await tx.employee.findFirst({
+          where: { phone: input.phone, userId: null, businessId: { not: null } },
         });
-        await tx.membership.createMany({
-          data: [
-            { userId: u.id, workspaceId: wood.id, role: 'OWNER' },
-            { userId: u.id, workspaceId: lumber.id, role: 'OWNER' },
-          ],
-        });
-        return { user: u, workspaces: [wood, lumber] };
+        if (employee?.businessId) {
+          await tx.joinRequest.create({
+            data: {
+              type: 'WORKER_JOIN',
+              userId: u.id,
+              businessId: employee.businessId,
+              employeeId: employee.id,
+            },
+          });
+        }
+        // topilmasa — WAITING_EMPLOYEE holati (buildPayload hisoblaydi)
+      }
+      return u;
+    });
+
+    return this.buildPayload(user.id);
+  }
+
+  /** Login/registerdan keyin yagona payload: rollar, biznes, kutish holati. */
+  async buildPayload(userId: string): Promise<AuthPayload> {
+    const user = await this.prisma.raw.user.findUniqueOrThrow({
+      where: { id: userId },
+      include: {
+        memberships: { include: { workspace: { include: { business: true } } } },
+        ownedBusinesses: true,
+        joinRequests: {
+          where: { status: 'PENDING' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
-    );
+    });
 
     const token = await this.jwt.signAsync({ sub: user.id, phone: user.phone });
+
+    // Biznes: egalik qilgani, bo'lmasa a'zoligi orqali
+    const owned = user.ownedBusinesses[0] ?? null;
+    const viaMembership =
+      user.memberships[0]?.workspace.business ?? null;
+    const business = owned ?? viaMembership;
+
+    // Kutish holati
+    let pending: string | null = null;
+    if (user.memberships.length === 0 && user.platformRole !== 'CEO') {
+      const req = user.joinRequests[0];
+      if (owned && owned.status === 'PENDING') pending = 'CEO_APPROVAL';
+      else if (owned && owned.status === 'REJECTED') pending = 'REJECTED';
+      else if (req?.type === 'WORKER_JOIN') pending = 'OWNER_APPROVAL';
+      else if (!owned) pending = 'WAITING_EMPLOYEE';
+    }
 
     return {
       token,
       userId: user.id,
       name: user.name,
-      workspaces: workspaces.map((w) => ({
-        id: w.id,
-        name: w.name,
-        type: w.type,
-        role: 'OWNER',
+      platformRole: user.platformRole,
+      workspaces: user.memberships.map((m) => ({
+        id: m.workspace.id,
+        name: m.workspace.name,
+        type: m.workspace.type,
+        role: m.role,
       })),
+      business: business
+        ? {
+            id: business.id,
+            name: business.name,
+            logoUrl: business.logoUrl,
+            status: business.status,
+          }
+        : null,
+      pending,
     };
   }
 
-  /** Parolni hash qilish — seed va foydalanuvchi yaratishda ishlatiladi. */
   static hashPassword(plain: string): Promise<string> {
     return bcrypt.hash(plain, 10);
   }

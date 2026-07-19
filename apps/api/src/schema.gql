@@ -11,10 +11,27 @@ input AddPaymentInput {
 }
 
 type AuthPayload {
+  business: BusinessBrief
   name: String!
+  pending: String
+  platformRole: String!
   token: String!
   userId: String!
   workspaces: [WorkspaceBrief!]!
+}
+
+type BusinessBrief {
+  id: String!
+  logoUrl: String
+  name: String!
+  status: String!
+}
+
+type BusinessView {
+  id: String!
+  logoUrl: String
+  name: String!
+  status: String!
 }
 
 type ConsolidatedReport {
@@ -126,6 +143,11 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+input DecideRequestInput {
+  approve: Boolean!
+  requestId: String!
+}
+
 type DefectRecord {
   date: DateTime!
   id: String!
@@ -202,6 +224,17 @@ type InventorySummary {
   totalRemainingM3: Float!
 }
 
+type JoinRequestView {
+  businessName: String
+  createdAt: DateTime!
+  employeeName: String
+  id: String!
+  status: String!
+  type: String!
+  userName: String!
+  userPhone: String!
+}
+
 input LoginInput {
   password: String!
   phone: String!
@@ -227,11 +260,14 @@ type Mutation {
   createShipment(input: CreateShipmentInput!): Shipment!
   createSupplier(input: CreateSupplierInput!): Supplier!
   createTransfer(input: CreateTransferInput!): StockTransfer!
+  decideOwnerRequest(input: DecideRequestInput!): JoinRequestView!
+  decideWorkerRequest(input: DecideRequestInput!): JoinRequestView!
   login(input: LoginInput!): AuthPayload!
   paySalary(input: PaySalaryInput!): SalaryPayment!
   recordDefect(input: RecordDefectInput!): DefectRecord!
   register(input: RegisterInput!): AuthPayload!
   setExchangeRate(input: SetExchangeRateInput!): ExchangeRate!
+  updateBusiness(input: UpdateBusinessInput!): BusinessView!
 }
 
 input PaySalaryInput {
@@ -305,6 +341,10 @@ type Query {
   inventorySummary: InventorySummary!
   latestExchangeRate(date: DateTime): ExchangeRate!
   me: String!
+  myAuth: AuthPayload!
+  myBusiness: BusinessView!
+  pendingOwnerRequests: [JoinRequestView!]!
+  pendingWorkerRequests: [JoinRequestView!]!
   productTemplates: [ProductTemplate!]!
   productionBatches: [ProductionBatch!]!
   purchases: [Purchase!]!
@@ -325,6 +365,8 @@ input RecordDefectInput {
 }
 
 input RegisterInput {
+  accountType: String!
+  businessName: String
   name: String!
   password: String!
   phone: String!
@@ -439,6 +481,10 @@ type Supplier {
 enum SupplierType {
   LOCAL
   RUSSIA
+}
+
+input UpdateBusinessInput {
+  name: String!
 }
 
 type WorkspaceBrief {

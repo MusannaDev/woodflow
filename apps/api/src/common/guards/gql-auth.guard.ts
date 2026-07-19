@@ -28,6 +28,10 @@ export class GqlAuthGuard extends AuthGuard('jwt') {
   }
 
   getRequest(context: ExecutionContext) {
+    // REST controller (masalan /upload/logo) uchun ham ishlaydi
+    if (context.getType() === 'http') {
+      return context.switchToHttp().getRequest();
+    }
     const ctx = GqlExecutionContext.create(context);
     return ctx.getContext().req;
   }

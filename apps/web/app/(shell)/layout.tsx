@@ -233,6 +233,12 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
             Onlayn
           </span>
+          <button
+            onClick={logout}
+            className="text-xs font-semibold text-neutral-500 hover:text-red-600 border border-neutral-200 hover:border-red-200 rounded-lg px-3 py-1.5 transition-colors"
+          >
+            Chiqish →
+          </button>
         </header>
 
         {/* ── MOBIL: glass top-header (workspace almashtirgich bilan) ── */}
@@ -268,7 +274,13 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
               </div>
             )}
           </div>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+          <button
+            onClick={logout}
+            aria-label="Chiqish"
+            className="flex items-center gap-1 text-[11px] font-semibold text-neutral-500 hover:text-red-600 border border-neutral-200 rounded-lg px-2 py-1.5 transition-colors flex-none"
+          >
+            Chiqish
+          </button>
         </header>
 
         {/* Kontent — mobilda pastki tab uchun joy */}

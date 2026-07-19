@@ -20,6 +20,17 @@ async function main() {
     },
   });
 
+  // IDEMPOTENT: Adam'da allaqachon workspace bo'lsa, qayta yaratmaymiz.
+  // (Aks holda seed ikki marta ishlasa dublikat workspace paydo bo'ladi.)
+  const existing = await prisma.membership.count({
+    where: { userId: adam.id },
+  });
+  if (existing > 0) {
+    // eslint-disable-next-line no-console
+    console.log('Seed: workspacelar allaqachon mavjud — o‘tkazib yuborildi.');
+    return;
+  }
+
   const wood = await prisma.workspace.create({
     data: { name: 'Yog‘och sotuvi', type: 'WOOD_TRADING' },
   });

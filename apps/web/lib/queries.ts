@@ -321,6 +321,60 @@ export const CREATE_TRANSFER = gql`
   }
 `;
 
+export const ISHCHILAR_PAGE = gql`
+  query IshchilarPage {
+    employees {
+      id
+      workspaceId
+      name
+      phone
+      position
+      salaryAmount
+      salaryType
+      createdAt
+    }
+  }
+`;
+
+export const CREATE_EMPLOYEE = gql`
+  mutation CreateEmployee($input: CreateEmployeeInput!) {
+    createEmployee(input: $input) {
+      id
+      name
+    }
+  }
+`;
+
+export const PAY_SALARY = gql`
+  mutation PaySalary($input: PaySalaryInput!) {
+    paySalary(input: $input) {
+      id
+      amountUzs
+      period
+    }
+  }
+`;
+
+export const CONSOLIDATED_REPORT = gql`
+  query ConsolidatedReport {
+    consolidatedReport {
+      workspaces {
+        workspaceId
+        name
+        type
+        salesUzs
+        transferInUzs
+        soldCostUzs
+        expensesUzs
+        netProfitUzs
+      }
+      totalSalesUzs
+      totalExpensesUzs
+      totalNetProfitUzs
+    }
+  }
+`;
+
 export const DASHBOARD = gql`
   query Dashboard {
     sales {

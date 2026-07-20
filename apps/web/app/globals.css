@@ -25,6 +25,32 @@
 
 body {
   @apply bg-[#f6f2ea] text-neutral-900 antialiased;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Brand rangida matn belgilash */
+::selection {
+  background: rgb(var(--brand) / 0.18);
+}
+
+/* Nozik luxury scrollbar */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--brand) / 0.22);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--brand) / 0.4);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 /* Interaktiv elementlar — doim pointer */
@@ -66,10 +92,21 @@ button:disabled {
       disabled:opacity-40 disabled:shadow-none;
   }
 
-  /* ── Sahifa kartalari (oq bloklar) — nozik glass ── */
+  /* ── Sahifa kartalari (oq bloklar) — nozik glass + hover ko'tarilish ── */
   .card {
     @apply bg-white/75 backdrop-blur-xl border border-white/70 rounded-2xl
-      shadow-sm shadow-neutral-900/[0.04];
+      shadow-sm shadow-neutral-900/[0.04]
+      transition-all duration-200 hover:shadow-lg hover:shadow-neutral-900/[0.07];
+  }
+
+  /* Jadval qatorlari — hover holati */
+  .card tbody tr,
+  .card li {
+    @apply transition-colors;
+  }
+  .card tbody tr:hover,
+  .card ul > li:hover {
+    background-color: rgb(var(--brand) / 0.04);
   }
 }
 

@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { Fragment, FormEvent, useMemo, useState } from 'react';
 import { ADD_PAYMENT, TOLOVLAR_PAGE } from '../../../lib/queries';
+import { formatMoneyInput, parseMoney } from '../../../lib/format';
 
 /**
  * To'lovlar / Qarzlar (UI hujjati §7.5): har savdoga bog'langan to'lovlar.
@@ -55,8 +56,8 @@ export default function TolovlarPage() {
   const paid = (data?.sales ?? []).filter((s) => s.debtUzs <= 0);
   const totalDebt = debts.reduce((a, s) => a + s.debtUzs, 0);
 
-  const amountNum = parseFloat(amount) || 0;
-  const rateNum = parseFloat(rate) || 0;
+  const amountNum = parseMoney(amount);
+  const rateNum = parseMoney(rate);
   const paymentUzs =
     currency === 'USD' ? amountNum * rateNum : amountNum;
 
@@ -115,7 +116,7 @@ export default function TolovlarPage() {
 
       {/* Chiplar */}
       <div className="grid grid-cols-2 gap-3 sm:max-w-md">
-        <div className="bg-white border border-amber-200 rounded-xl p-4">
+        <div className="card rounded-xl !border-amber-300 p-4">
           <div className="text-[11px] tracking-wide text-neutral-500 font-medium">
             JAMI QARZ
           </div>
@@ -124,7 +125,7 @@ export default function TolovlarPage() {
           </div>
           <div className="text-xs text-neutral-400">so&apos;m</div>
         </div>
-        <div className="bg-white border border-neutral-200 rounded-xl p-4">
+        <div className="card rounded-xl p-4">
           <div className="text-[11px] tracking-wide text-neutral-500 font-medium">
             QARZDOR SAVDOLAR
           </div>
@@ -148,7 +149,7 @@ export default function TolovlarPage() {
       )}
 
       {/* ─── Qarzli savdolar ─── */}
-      <section className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+      <section className="card overflow-hidden">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
           Qarzli savdolar
         </h2>
@@ -203,7 +204,7 @@ export default function TolovlarPage() {
                           <span className="field-label text-xs">Summa</span>
                           <input
                             value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
+                            onChange={(e) => setAmount(formatMoneyInput(e.target.value))}
                             inputMode="decimal"
                             placeholder={currency === 'USD' ? '100' : '200 000'}
                             className="field-input !py-2 w-36"
@@ -230,7 +231,7 @@ export default function TolovlarPage() {
                             </span>
                             <input
                               value={rate}
-                              onChange={(e) => setRate(e.target.value)}
+                              onChange={(e) => setRate(formatMoneyInput(e.target.value))}
                               inputMode="decimal"
                               placeholder="12 600"
                               className="field-input !py-2 w-32"
@@ -261,7 +262,7 @@ export default function TolovlarPage() {
       </section>
 
       {/* ─── To'langan savdolar ─── */}
-      <section className="bg-white border border-neutral-200 rounded-2xl">
+      <section className="card">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
           To&apos;langan savdolar
         </h2>

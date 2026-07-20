@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useState } from 'react';
 import { CREATE_TEMPLATE, TEMPLATES_PAGE } from '../../../lib/queries';
+import { parseDecimal } from '../../../lib/format';
 
 /**
  * Mahsulot shablonlari (UI hujjati §8.2): doimiy o'lchamlar (Pol taxta,
@@ -29,9 +30,9 @@ export default function ShablonlarPage() {
   const [thickness, setThickness] = useState('0.03');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const L = parseFloat(length) || 0;
-  const W = parseFloat(width) || 0;
-  const T = parseFloat(thickness) || 0;
+  const L = parseDecimal(length);
+  const W = parseDecimal(width);
+  const T = parseDecimal(thickness);
   const vpp = L * W * T;
 
   async function onSubmit(e: FormEvent) {
@@ -66,7 +67,7 @@ export default function ShablonlarPage() {
 
       <div className="grid lg:grid-cols-[1fr_340px] gap-6 items-start">
         {/* ─── Ro'yxat ─── */}
-        <section className="bg-white border border-neutral-200 rounded-2xl overflow-hidden order-2 lg:order-1">
+        <section className="card overflow-hidden order-2 lg:order-1">
           {templates.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-500">
               Hozircha shablon yo&apos;q — o&apos;ngdan qo&apos;shing.
@@ -106,7 +107,7 @@ export default function ShablonlarPage() {
         {/* ─── Yangi shablon ─── */}
         <form
           onSubmit={onSubmit}
-          className="bg-white border border-neutral-200 rounded-2xl p-5 grid gap-4 order-1 lg:order-2 lg:sticky lg:top-20"
+          className="card p-5 grid gap-4 order-1 lg:order-2 lg:sticky lg:top-20"
         >
           <h2 className="font-semibold text-sm">+ Yangi shablon</h2>
           <label className="grid gap-1.5">

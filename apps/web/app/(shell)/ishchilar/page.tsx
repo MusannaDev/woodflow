@@ -10,6 +10,7 @@ import {
   PENDING_WORKER_REQUESTS,
 } from '../../../lib/queries';
 import { session } from '../../../lib/session';
+import { formatMoneyInput, parseMoney } from '../../../lib/format';
 
 /**
  * Ishchilar (UI hujjati §7.8): ism, telefon, lavozim, oylik turi.
@@ -94,7 +95,7 @@ export default function IshchilarPage() {
             name: name.trim(),
             phone: phone || null,
             position: position || null,
-            salaryAmount: parseFloat(salaryAmount) || 0,
+            salaryAmount: parseMoney(salaryAmount),
             salaryType,
             isShared,
           },
@@ -104,6 +105,9 @@ export default function IshchilarPage() {
       setName('');
       setPosition('');
       setSalaryAmount('');
+      setPhone('+998');
+      setSalaryType('MONTHLY');
+      setIsShared(false);
       await refetch();
     } catch (err) {
       setMsg({
@@ -116,7 +120,7 @@ export default function IshchilarPage() {
   async function onPay(e: FormEvent, emp: EmployeeRow) {
     e.preventDefault();
     setMsg(null);
-    const amountUzs = parseFloat(payAmount) || 0;
+    const amountUzs = parseMoney(payAmount);
     if (amountUzs <= 0) {
       setMsg({ ok: false, text: 'Summani kiriting.' });
       return;
@@ -234,7 +238,7 @@ export default function IshchilarPage() {
 
       <div className="grid lg:grid-cols-[1fr_340px] gap-6 items-start">
         {/* ─── Ro'yxat ─── */}
-        <section className="bg-white border border-neutral-200 rounded-2xl overflow-hidden order-2 lg:order-1">
+        <section className="card overflow-hidden order-2 lg:order-1">
           {employees.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-500">
               Hozircha ishchi yo&apos;q.
@@ -293,7 +297,7 @@ export default function IshchilarPage() {
                             <button
                               onClick={() => {
                                 setPayId(isOpen ? null : emp.id);
-                                setPayAmount(String(emp.salaryAmount || ''));
+                                setPayAmount(formatMoneyInput(String(emp.salaryAmount ?? '')));
                                 setPayPeriod(currentPeriod());
                                 setMsg(null);
                               }}
@@ -321,7 +325,7 @@ export default function IshchilarPage() {
                                   </span>
                                   <input
                                     value={payAmount}
-                                    onChange={(e) => setPayAmount(e.target.value)}
+                                    onChange={(e) => setPayAmount(formatMoneyInput(e.target.value))}
                                     inputMode="numeric"
                                     className="field-input !py-2 w-40"
                                     autoFocus
@@ -359,7 +363,7 @@ export default function IshchilarPage() {
         {/* ─── Yangi ishchi ─── */}
         <form
           onSubmit={onCreate}
-          className="bg-white border border-neutral-200 rounded-2xl p-5 grid gap-4 order-1 lg:order-2 lg:sticky lg:top-20"
+          className="card p-5 grid gap-4 order-1 lg:order-2 lg:sticky lg:top-20"
         >
           <h2 className="font-semibold text-sm">+ Yangi ishchi</h2>
           <label className="grid gap-1.5">
@@ -396,7 +400,7 @@ export default function IshchilarPage() {
               <span className="field-label">Maosh (so&apos;m)</span>
               <input
                 value={salaryAmount}
-                onChange={(e) => setSalaryAmount(e.target.value)}
+                onChange={(e) => setSalaryAmount(formatMoneyInput(e.target.value))}
                 inputMode="numeric"
                 placeholder="1 500 000"
                 className="field-input"
@@ -439,7 +443,7 @@ export default function IshchilarPage() {
             disabled={
               creating ||
               name.trim().length < 2 ||
-              !(parseFloat(salaryAmount) > 0)
+              !(parseMoney(salaryAmount) > 0)
             }
             className="btn-primary"
           >

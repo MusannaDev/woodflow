@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useMemo, useState } from 'react';
 import { CREATE_EXPENSE, EXPENSES_PAGE } from '../../../lib/queries';
+import { formatMoneyInput, parseMoney } from '../../../lib/format';
 
 /**
  * Xarajatlar (UI hujjati §7.7): yuqorida kategoriya kartalari (shu oygi
@@ -72,7 +73,7 @@ export default function XarajatlarPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setMsg(null);
-    const amountUzs = parseFloat(amount) || 0;
+    const amountUzs = parseMoney(amount);
     if (amountUzs <= 0) {
       setMsg({ ok: false, text: 'Summani kiriting.' });
       return;
@@ -121,7 +122,7 @@ export default function XarajatlarPage() {
         {CATEGORIES.map((c) => (
           <div
             key={c.value}
-            className="bg-white border border-neutral-200 rounded-xl px-3 py-2.5"
+            className="card rounded-xl px-3 py-2.5"
           >
             <div className="text-[11px] text-neutral-500 flex items-center gap-1">
               <span>{c.icon}</span> {c.label}
@@ -135,7 +136,7 @@ export default function XarajatlarPage() {
 
       <div className="grid lg:grid-cols-[1fr_340px] gap-6 items-start">
         {/* ─── So'nggi xarajatlar ─── */}
-        <section className="bg-white border border-neutral-200 rounded-2xl order-2 lg:order-1">
+        <section className="card order-2 lg:order-1">
           <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
             So&apos;nggi xarajatlar
           </h2>
@@ -179,7 +180,7 @@ export default function XarajatlarPage() {
         {/* ─── Yangi xarajat formasi ─── */}
         <form
           onSubmit={onSubmit}
-          className="bg-white border border-neutral-200 rounded-2xl p-5 grid gap-4 order-1 lg:order-2 lg:sticky lg:top-20"
+          className="card p-5 grid gap-4 order-1 lg:order-2 lg:sticky lg:top-20"
         >
           <h2 className="font-semibold text-sm">+ Yangi xarajat</h2>
 
@@ -202,7 +203,7 @@ export default function XarajatlarPage() {
             <span className="field-label">Summa (so&apos;m)</span>
             <input
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => setAmount(formatMoneyInput(e.target.value))}
               inputMode="numeric"
               placeholder="320 000"
               className="field-input"
@@ -247,7 +248,7 @@ export default function XarajatlarPage() {
           )}
 
           <button
-            disabled={saving || !(parseFloat(amount) > 0)}
+            disabled={saving || !(parseMoney(amount) > 0)}
             className="btn-primary"
           >
             {saving ? 'Saqlanmoqda…' : 'Xarajatni yozish'}

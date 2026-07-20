@@ -15,6 +15,10 @@ const config: Config = {
           faint: 'rgb(var(--brand-faint) / <alpha-value>)',
         },
       },
+      fontFamily: {
+        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-serif)', 'Georgia', 'serif'],
+      },
     },
   },
   plugins: [],

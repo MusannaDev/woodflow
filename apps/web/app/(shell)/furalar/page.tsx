@@ -7,6 +7,7 @@ import {
   SHIPMENTS_PAGE,
   SHIPMENT_PNL,
 } from '../../../lib/queries';
+import { formatMoneyInput, parseMoney } from '../../../lib/format';
 
 /**
  * Furalar (UI hujjati §7.1): chapda ro'yxat, o'ngda tanlangan furaning
@@ -94,8 +95,8 @@ export default function FuralarPage() {
             ownerName: ownerName.trim(),
             ownerPhone: ownerPhone || null,
             arrivalDate: new Date().toISOString(),
-            transportCost: parseFloat(transportCost) || 0,
-            customsCost: parseFloat(customsCost) || 0,
+            transportCost: parseMoney(transportCost),
+            customsCost: parseMoney(customsCost),
           },
         },
       });
@@ -153,7 +154,7 @@ export default function FuralarPage() {
       {showForm && (
         <form
           onSubmit={onSubmit}
-          className="bg-white border border-neutral-200 rounded-2xl p-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-[fadeIn_.3s_ease]"
+          className="card p-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-[fadeIn_.3s_ease]"
         >
           <label className="grid gap-1.5">
             <span className="field-label">Fura nomeri</span>
@@ -195,7 +196,7 @@ export default function FuralarPage() {
             <span className="field-label">Transport xarajati (so&apos;m)</span>
             <input
               value={transportCost}
-              onChange={(e) => setTransportCost(e.target.value)}
+              onChange={(e) => setTransportCost(formatMoneyInput(e.target.value))}
               inputMode="numeric"
               placeholder="4 000 000"
               className="field-input"
@@ -205,7 +206,7 @@ export default function FuralarPage() {
             <span className="field-label">Bojxona (so&apos;m)</span>
             <input
               value={customsCost}
-              onChange={(e) => setCustomsCost(e.target.value)}
+              onChange={(e) => setCustomsCost(formatMoneyInput(e.target.value))}
               inputMode="numeric"
               placeholder="500 000"
               className="field-input"
@@ -224,7 +225,7 @@ export default function FuralarPage() {
 
       <div className="grid lg:grid-cols-[1fr_400px] gap-6 items-start">
         {/* ─── Ro'yxat ─── */}
-        <section className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+        <section className="card overflow-hidden">
           {shipments.length === 0 ? (
             <p className="px-5 py-8 text-sm text-neutral-500 text-center">
               Hozircha fura yo&apos;q — «+ Yangi fura» bilan qo&apos;shing.
@@ -272,7 +273,7 @@ export default function FuralarPage() {
         </section>
 
         {/* ─── P&L panel ─── */}
-        <aside className="bg-white border border-neutral-200 rounded-2xl p-5 lg:sticky lg:top-20">
+        <aside className="card p-5 lg:sticky lg:top-20">
           {!selected ? (
             <p className="text-sm text-neutral-500">Fura tanlang.</p>
           ) : pnlLoading || !pnl ? (

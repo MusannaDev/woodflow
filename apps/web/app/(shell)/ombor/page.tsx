@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { Fragment, FormEvent, useState } from 'react';
 import { INVENTORY_PAGE, RECORD_DEFECT } from '../../../lib/queries';
+import { parseDecimal } from '../../../lib/format';
 
 /**
  * Ombor (UI hujjati §7.3): yuqorida umumiy chiplar, pastda lotlar jadvali.
@@ -59,7 +60,7 @@ export default function OmborPage() {
   async function submitDefect(e: FormEvent, lot: LotRow) {
     e.preventDefault();
     setMsg(null);
-    const vol = parseFloat(defectVol) || 0;
+    const vol = parseDecimal(defectVol);
     if (vol <= 0 || vol > lot.volumeM3Remaining) {
       setMsg({
         ok: false,
@@ -113,7 +114,7 @@ export default function OmborPage() {
         ].map(([l, v, cls]) => (
           <div
             key={l}
-            className="bg-white border border-neutral-200 rounded-xl p-4"
+            className="card rounded-xl p-4"
           >
             <div className="text-[11px] tracking-wide text-neutral-500 font-medium">
               {l}
@@ -138,7 +139,7 @@ export default function OmborPage() {
       )}
 
       {/* ─── Lotlar jadvali ─── */}
-      <section className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+      <section className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

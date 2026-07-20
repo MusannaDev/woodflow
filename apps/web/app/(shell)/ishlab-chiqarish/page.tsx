@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useMemo, useState } from 'react';
 import { CREATE_BATCH, PRODUCTION_PAGE } from '../../../lib/queries';
+import { formatMoneyInput, parseDecimal, parseQty } from '../../../lib/format';
 
 /**
  * Ishlab chiqarish (UI hujjati §8.1): partiya — kirish (xomashyo m³),
@@ -65,8 +66,8 @@ export default function IshlabChiqarishPage() {
   }, [templates]);
 
   // ─── JONLI HISOB ───
-  const inVol = parseFloat(inputVol) || 0;
-  const qty = parseInt(quantity) || 0;
+  const inVol = parseDecimal(inputVol);
+  const qty = parseQty(quantity);
   const outVol = product ? product.volumePerPiece * qty : 0;
   const yieldPct = inVol > 0 && outVol > 0 ? (outVol / inVol) * 100 : 0;
   const exceedsLot = lot !== null && inVol > lot.volumeM3Remaining;
@@ -124,7 +125,7 @@ export default function IshlabChiqarishPage() {
         {/* ─── Yangi partiya ─── */}
         <form
           onSubmit={onSubmit}
-          className="bg-white border border-neutral-200 rounded-2xl p-5 md:p-6 grid gap-5"
+          className="card p-5 md:p-6 grid gap-5"
         >
           <h2 className="font-semibold text-sm">+ Yangi partiya</h2>
 
@@ -177,7 +178,7 @@ export default function IshlabChiqarishPage() {
             <span className="field-label">Chiqqan dona soni</span>
             <input
               value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
+              onChange={(e) => setQuantity(formatMoneyInput(e.target.value))}
               inputMode="numeric"
               placeholder="450"
               className="field-input"
@@ -259,7 +260,7 @@ export default function IshlabChiqarishPage() {
       </div>
 
       {/* ─── Partiyalar tarixi ─── */}
-      <section className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+      <section className="card overflow-hidden">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
           Partiyalar tarixi
         </h2>

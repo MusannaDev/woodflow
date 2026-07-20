@@ -62,7 +62,7 @@ export default function MijozlarPage() {
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start">
         {/* ─── Jadval ─── */}
-        <section className="bg-white border border-neutral-200 rounded-2xl overflow-hidden order-2 lg:order-1">
+        <section className="card overflow-hidden order-2 lg:order-1">
           <div className="px-5 py-3.5 border-b border-neutral-100 flex items-center justify-between">
             <h2 className="font-semibold text-sm">
               Barcha mijozlar ({customers.length})
@@ -131,7 +131,7 @@ export default function MijozlarPage() {
         {/* ─── Yangi mijoz ─── */}
         <form
           onSubmit={onSubmit}
-          className="bg-white border border-neutral-200 rounded-2xl p-5 grid gap-4 order-1 lg:order-2 lg:sticky lg:top-20"
+          className="card p-5 grid gap-4 order-1 lg:order-2 lg:sticky lg:top-20"
         >
           <h2 className="font-semibold text-sm">+ Yangi mijoz</h2>
           <label className="grid gap-1.5">

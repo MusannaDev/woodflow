@@ -86,8 +86,8 @@ export default function DashboardPage() {
         {kpis.map((k) => (
           <div
             key={k.label}
-            className={`bg-white border rounded-xl p-4 ${
-              k.warn ? 'border-amber-300' : 'border-neutral-200'
+            className={`card rounded-xl p-4 ${
+              k.warn ? '!border-amber-300' : ''
             }`}
           >
             <div className="text-[11px] tracking-wide text-neutral-500 font-medium">
@@ -103,7 +103,7 @@ export default function DashboardPage() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* So'nggi savdolar */}
-        <section className="bg-white border border-neutral-200 rounded-xl">
+        <section className="card rounded-xl">
           <h2 className="px-4 py-3 border-b border-neutral-100 font-semibold text-sm">
             So&apos;nggi savdolar
           </h2>
@@ -140,7 +140,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Ombor lotlari */}
-        <section className="bg-white border border-neutral-200 rounded-xl">
+        <section className="card rounded-xl">
           <h2 className="px-4 py-3 border-b border-neutral-100 font-semibold text-sm">
             Ombor (lotlar)
           </h2>

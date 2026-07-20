@@ -317,7 +317,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
         </header>
 
         {/* Kontent — mobilda pastki tab uchun joy */}
-        <main className="flex-1 p-4 md:p-6 pb-28 md:pb-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6 pb-28 md:pb-6 animate-[fadeIn_.35s_ease]">{children}</main>
       </div>
 
       {/* ════════ MOBIL: Instagram-uslub pastki tab-bar (glass) ════════ */}

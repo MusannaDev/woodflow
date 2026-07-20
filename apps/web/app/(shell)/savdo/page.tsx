@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useMemo, useState } from 'react';
 import { CREATE_SALE, SALES_PAGE } from '../../../lib/queries';
+import { formatMoneyInput, parseDecimal, parseMoney, parseQty } from '../../../lib/format';
 
 /**
  * Savdo — platformaning yuragi (UI hujjati §7.4).
@@ -77,11 +78,11 @@ export default function SavdoPage() {
   const perPiece = saleType === 'PER_PIECE';
 
   // ─── JONLI HISOB ───
-  const L = parseFloat(length) || 0;
-  const W = parseFloat(width) || 0;
-  const T = parseFloat(thickness) || 0;
-  const qty = parseInt(quantity) || 0;
-  const price = parseFloat(unitPrice) || 0;
+  const L = parseDecimal(length);
+  const W = parseDecimal(width);
+  const T = parseDecimal(thickness);
+  const qty = parseQty(quantity);
+  const price = parseMoney(unitPrice);
 
   const volPerPiece = L * W * T;
   const totalVol = volPerPiece * qty;
@@ -141,7 +142,7 @@ export default function SavdoPage() {
         {/* ─── FORMA ─── */}
         <form
           onSubmit={onSubmit}
-          className="bg-white border border-neutral-200 rounded-2xl p-5 md:p-6 grid gap-5"
+          className="card p-5 md:p-6 grid gap-5"
         >
           <div className="grid sm:grid-cols-2 gap-4">
             <label className="grid gap-1.5">
@@ -225,7 +226,7 @@ export default function SavdoPage() {
               <span className="field-label">Dona soni</span>
               <input
                 value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
+                onChange={(e) => setQuantity(formatMoneyInput(e.target.value))}
                 inputMode="numeric"
                 placeholder="200"
                 className="field-input"
@@ -237,7 +238,7 @@ export default function SavdoPage() {
               </span>
               <input
                 value={unitPrice}
-                onChange={(e) => setUnitPrice(e.target.value)}
+                onChange={(e) => setUnitPrice(formatMoneyInput(e.target.value))}
                 inputMode="numeric"
                 placeholder="25 000"
                 className="field-input"
@@ -326,7 +327,7 @@ export default function SavdoPage() {
       </div>
 
       {/* ─── SAVDOLAR RO'YXATI ─── */}
-      <section className="bg-white border border-neutral-200 rounded-2xl">
+      <section className="card">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
           So&apos;nggi savdolar
         </h2>

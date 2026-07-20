@@ -69,7 +69,7 @@ export default function KonsolidatsiyaPage() {
         {totals.map((t) => (
           <div
             key={t.label}
-            className="bg-white border border-neutral-200 rounded-xl p-4"
+            className="card rounded-xl p-4"
           >
             <div className="text-[11px] tracking-wide text-neutral-500 font-medium">
               {t.label}
@@ -92,7 +92,7 @@ export default function KonsolidatsiyaPage() {
             <section
               key={ws.workspaceId}
               data-ws={ws.type}
-              className="bg-white border border-neutral-200 rounded-2xl overflow-hidden"
+              className="card overflow-hidden"
             >
               <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-brand inline-block" />

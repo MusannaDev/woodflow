@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { CREATE_TRANSFER, TRANSFERS_PAGE } from '../../../lib/queries';
+import { formatMoneyInput, parseDecimal, parseMoney } from '../../../lib/format';
 import { session, WorkspaceBrief } from '../../../lib/session';
 
 /**
@@ -59,8 +60,8 @@ export default function TransferPage() {
     [data],
   );
   const lot = lots.find((l) => l.id === lotId) ?? null;
-  const vol = parseFloat(volume) || 0;
-  const priceNum = parseFloat(price) || 0;
+  const vol = parseDecimal(volume);
+  const priceNum = parseMoney(price);
   const exceeds = lot !== null && vol > lot.volumeM3Remaining;
   const isWood = ws?.type === 'WOOD_TRADING';
   const canSend = isWood && ws?.role === 'OWNER'; // yuborish faqat egaga
@@ -124,7 +125,7 @@ export default function TransferPage() {
         /* ─── YOG'OCH (egasi): yuborish formasi ─── */
         <form
           onSubmit={onSubmit}
-          className="bg-white border border-neutral-200 rounded-2xl p-5 md:p-6 grid gap-5 max-w-2xl"
+          className="card p-5 md:p-6 grid gap-5 max-w-2xl"
         >
           <h2 className="font-semibold text-sm">
             Xomashyo yuborish → <span className="text-emerald-700">{other?.name}</span>
@@ -161,7 +162,7 @@ export default function TransferPage() {
               <span className="field-label">Jami ichki narx (so&apos;m)</span>
               <input
                 value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                onChange={(e) => setPrice(formatMoneyInput(e.target.value))}
                 inputMode="numeric"
                 placeholder="13 050 000"
                 className="field-input"
@@ -191,7 +192,7 @@ export default function TransferPage() {
         </form>
       ) : (
         /* ─── Ishchi yoki Taxta: faqat tarix ─── */
-        <p className="text-sm text-neutral-500 bg-white border border-neutral-200 rounded-2xl px-5 py-4 max-w-2xl">
+        <p className="text-sm text-neutral-500 card px-5 py-4 max-w-2xl">
           {isWood
             ? "Transfer yuborish faqat biznes egasiga ochiq. Quyida transferlar tarixi."
             : "Xomashyo Yog'och sotuvi tomonidan yuboriladi va bu yerda avtomatik Xomashyo omboriga tushadi (kirim sifatida). Quyida qabul qilingan transferlar tarixi."}
@@ -199,7 +200,7 @@ export default function TransferPage() {
       )}
 
       {/* ─── Transferlar tarixi ─── */}
-      <section className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+      <section className="card overflow-hidden">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
           Transferlar tarixi
         </h2>

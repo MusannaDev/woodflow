@@ -63,6 +63,7 @@ export default function TransferPage() {
   const priceNum = parseFloat(price) || 0;
   const exceeds = lot !== null && vol > lot.volumeM3Remaining;
   const isWood = ws?.type === 'WOOD_TRADING';
+  const canSend = isWood && ws?.role === 'OWNER'; // yuborish faqat egaga
 
   const wsName = (id: string) =>
     session.workspaces().find((w) => w.id === id)?.name ?? '—';
@@ -119,8 +120,8 @@ export default function TransferPage() {
         </p>
       )}
 
-      {isWood ? (
-        /* ─── YOG'OCH: yuborish formasi ─── */
+      {canSend ? (
+        /* ─── YOG'OCH (egasi): yuborish formasi ─── */
         <form
           onSubmit={onSubmit}
           className="bg-white border border-neutral-200 rounded-2xl p-5 md:p-6 grid gap-5 max-w-2xl"
@@ -189,11 +190,11 @@ export default function TransferPage() {
           </button>
         </form>
       ) : (
-        /* ─── TAXTA: qabul haqida izoh ─── */
+        /* ─── Ishchi yoki Taxta: faqat tarix ─── */
         <p className="text-sm text-neutral-500 bg-white border border-neutral-200 rounded-2xl px-5 py-4 max-w-2xl">
-          Xomashyo <b>Yog&apos;och sotuvi</b> tomonidan yuboriladi va bu yerda
-          avtomatik <b>Xomashyo ombori</b>ga tushadi (kirim sifatida).
-          Quyida qabul qilingan transferlar tarixi.
+          {isWood
+            ? "Transfer yuborish faqat biznes egasiga ochiq. Quyida transferlar tarixi."
+            : "Xomashyo Yog'och sotuvi tomonidan yuboriladi va bu yerda avtomatik Xomashyo omboriga tushadi (kirim sifatida). Quyida qabul qilingan transferlar tarixi."}
         </p>
       )}
 

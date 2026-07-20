@@ -57,6 +57,22 @@ const TABS_LUMBER: MenuItem[] = [
   { href: '/savdo', label: 'Savdo', icon: '+' },
   { href: '/tayyor-ombor', label: 'Tayyor', icon: '▥' },
 ];
+const TABS_WORKER: MenuItem[] = [
+  { href: '/dashboard', label: 'Asosiy', icon: '▦' },
+  { href: '/ombor', label: 'Ombor', icon: '▣' },
+  { href: '/savdo', label: 'Savdo', icon: '+' },
+  { href: '/mijozlar', label: 'Mijozlar', icon: '◎' },
+];
+
+/** WORKER (ishchi) ko'ra oladigan sahifalar — qolganlari yashirin. */
+const WORKER_ALLOWED = new Set([
+  '/dashboard',
+  '/furalar',
+  '/ombor',
+  '/savdo',
+  '/transfer',
+  '/mijozlar',
+]);
 
 export default function ShellLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -91,6 +107,13 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
     setPlatformRole(session.platformRole());
   }, [router]);
 
+  // Ishchi ruxsatsiz sahifaga URL orqali kirsa — dashboard'ga qaytariladi
+  useEffect(() => {
+    if (ws?.role === 'WORKER' && !WORKER_ALLOWED.has(pathname)) {
+      router.replace('/dashboard');
+    }
+  }, [ws, pathname, router]);
+
   function switchWs(target: WorkspaceBrief) {
     session.setCurrentWorkspace(target.id);
     window.location.reload();
@@ -104,17 +127,27 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
   if (!ws) return null;
 
   const menu = ws.type === 'LUMBER_PRODUCTION' ? MENU_LUMBER : MENU_WOOD;
-  const tabs = ws.type === 'LUMBER_PRODUCTION' ? TABS_LUMBER : TABS_WOOD;
   const isOwner = ws.role === 'OWNER';
-  const visibleMenu = [
-    ...menu.filter((m) => m.href !== '/konsolidatsiya' || isOwner),
-    ...(isOwner
-      ? [{ href: '/sozlamalar', label: 'Sozlamalar', icon: '⚙' }]
-      : []),
-    ...(platformRole === 'CEO'
-      ? [{ href: '/ceo', label: 'CEO panel', icon: '⭑' }]
-      : []),
-  ];
+  const isWorker = ws.role === 'WORKER';
+
+  // Ishchi — faqat ruxsat etilgan sahifalar; boshqalar to'liq menyu
+  const visibleMenu = isWorker
+    ? menu.filter((m) => WORKER_ALLOWED.has(m.href))
+    : [
+        ...menu.filter((m) => m.href !== '/konsolidatsiya' || isOwner),
+        ...(isOwner
+          ? [{ href: '/sozlamalar', label: 'Sozlamalar', icon: '⚙' }]
+          : []),
+        ...(platformRole === 'CEO'
+          ? [{ href: '/ceo', label: 'CEO panel', icon: '⭑' }]
+          : []),
+      ];
+
+  const tabs = isWorker
+    ? TABS_WORKER
+    : ws.type === 'LUMBER_PRODUCTION'
+      ? TABS_LUMBER
+      : TABS_WOOD;
 
   /** Biznes brendi: logo (yuklangan bo'lsa) + nom. */
   const brandName = biz?.name ?? 'WoodFlow';

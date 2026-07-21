@@ -59,7 +59,7 @@ export default function CeoPage() {
   const requests = data?.pendingOwnerRequests ?? [];
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <div>
         <h1 className="text-xl font-bold flex items-center gap-2">
           <span className="text-amber-500">⭑</span> CEO panel

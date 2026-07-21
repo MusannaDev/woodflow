@@ -47,10 +47,13 @@ export function BrandPanel() {
 
       <Link
         href="/"
-        className="relative flex items-center gap-2.5 text-xl font-bold tracking-tight hover:opacity-80 transition-opacity w-fit"
+        className="relative w-fit hover:opacity-90 transition-opacity"
       >
-        <span className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 shadow-[0_0_18px_rgba(232,176,106,0.7)]" />
-        WoodFlow
+        <img
+          src="/rs-logo.png"
+          alt="RS Development"
+          className="w-44 rounded-2xl ring-1 ring-amber-300/15 shadow-2xl shadow-black/40"
+        />
       </Link>
 
       <div className="relative max-w-md">
@@ -81,7 +84,7 @@ export function BrandPanel() {
       </div>
 
       <p className="relative text-xs text-white/35">
-        © {new Date().getFullYear()} WoodFlow · Yog&apos;och &amp; Taxta biznes
+        © {new Date().getFullYear()} RS Development · Yog&apos;och &amp; Taxta biznes
         platformasi
       </p>
     </aside>

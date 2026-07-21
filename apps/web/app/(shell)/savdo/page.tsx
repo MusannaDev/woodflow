@@ -264,15 +264,15 @@ export default function SavdoPage() {
     return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Yangi savdo</h1>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
         {/* ─── FORMA ─── */}
-        <form onSubmit={onSubmit} className="card p-5 md:p-6 grid gap-5">
-          <div className="grid sm:grid-cols-2 gap-4">
+        <form onSubmit={onSubmit} className="card p-5 md:p-6 grid gap-5 min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="grid gap-1.5">
               <span className="field-label">Mijoz (ixtiyoriy)</span>
               <select
@@ -312,7 +312,7 @@ export default function SavdoPage() {
 
           {/* ➕ Yangi mijoz mini-formasi */}
           {customerId === '__new' && (
-            <div className="grid sm:grid-cols-2 gap-3 rounded-xl border-2 border-brand/30 bg-brand-faint/60 p-4 animate-[fadeIn_.3s_ease]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border-2 border-brand/30 bg-brand-faint/60 p-4 animate-[fadeIn_.3s_ease]">
               <label className="grid gap-1.5">
                 <span className="field-label text-xs">Mijoz ismi</span>
                 <input
@@ -556,7 +556,7 @@ export default function SavdoPage() {
         </form>
 
         {/* ─── JONLI HISOB PANELI ─── */}
-        <aside className="bg-brand-faint border border-brand/20 rounded-2xl p-5 grid gap-3 lg:sticky lg:top-20">
+        <aside className="bg-brand-faint border border-brand/20 rounded-2xl p-5 grid gap-3 lg:sticky lg:top-20 min-w-0">
           <h2 className="text-sm font-bold text-brand tracking-wide">
             Tizim avtomatik hisoblaydi
           </h2>

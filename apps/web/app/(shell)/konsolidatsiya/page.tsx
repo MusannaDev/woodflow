@@ -56,7 +56,7 @@ export default function KonsolidatsiyaPage() {
   ];
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <div>
         <h1 className="text-xl font-bold">Konsolidatsiya</h1>
         <p className="text-sm text-neutral-500 mt-1">

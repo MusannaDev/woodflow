@@ -57,10 +57,10 @@ export default function MijozlarPage() {
   const totalDebt = customers.reduce((a, c) => a + c.debtUzs, 0);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <h1 className="text-xl font-bold">Mijozlar</h1>
 
-      <div className="grid lg:grid-cols-[1fr_320px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
         {/* ─── Jadval ─── */}
         <section className="card overflow-hidden order-2 lg:order-1">
           <div className="px-5 py-3.5 border-b border-neutral-100 flex items-center justify-between">

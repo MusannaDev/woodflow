@@ -114,7 +114,7 @@ export default function XarajatlarPage() {
   );
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <h1 className="text-xl font-bold">Xarajatlar</h1>
 
       {/* ─── Kategoriya kartalari (shu oy) ─── */}
@@ -134,7 +134,7 @@ export default function XarajatlarPage() {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_340px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
         {/* ─── So'nggi xarajatlar ─── */}
         <section className="card order-2 lg:order-1">
           <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">

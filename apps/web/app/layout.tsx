@@ -17,13 +17,17 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: 'WoodFlow',
+  title: 'RS Development',
   description: "Yog'och & Taxta biznes platformasi",
   manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/rs-icon.png',
+    apple: '/rs-icon.png',
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#b06a24',
+  themeColor: '#0a0a0a',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

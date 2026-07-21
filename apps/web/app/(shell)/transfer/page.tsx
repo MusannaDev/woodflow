@@ -115,7 +115,7 @@ export default function TransferPage() {
   const transfers = data?.transfers ?? [];
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <h1 className="text-xl font-bold">Ichki transfer</h1>
 
       {msg && (
@@ -156,7 +156,7 @@ export default function TransferPage() {
             </select>
           </label>
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="grid gap-1.5">
               <span className="field-label">Hajm (m³)</span>
               <input

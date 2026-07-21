@@ -118,10 +118,10 @@ export default function IshlabChiqarishPage() {
   const batches = data?.productionBatches ?? [];
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <h1 className="text-xl font-bold">Ishlab chiqarish</h1>
 
-      <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
         {/* ─── Yangi partiya ─── */}
         <form
           onSubmit={onSubmit}
@@ -146,7 +146,7 @@ export default function IshlabChiqarishPage() {
             </select>
           </label>
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="grid gap-1.5">
               <span className="field-label">Kirish hajmi (m³)</span>
               <input

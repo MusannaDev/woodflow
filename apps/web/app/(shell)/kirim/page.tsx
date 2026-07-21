@@ -140,10 +140,10 @@ export default function KirimPage() {
   const shipments = data?.shipments ?? [];
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <h1 className="text-xl font-bold">Kirim</h1>
 
-      <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
         {/* ─── FORMA ─── */}
         <form onSubmit={onSubmit} className="card p-5 md:p-6 grid gap-5">
           {/* Taxta'da izoh: import Yog'och bo'limida */}
@@ -221,7 +221,7 @@ export default function KirimPage() {
             </label>
           )}
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="grid gap-1.5">
               <span className="field-label">Yog&apos;och turi</span>
               <input

@@ -1,10 +1,17 @@
 {
-  "name": "WoodFlow",
-  "short_name": "WoodFlow",
+  "name": "RS Development",
+  "short_name": "RS Dev",
   "description": "Yog'och & Taxta biznes platformasi",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#fafafa",
-  "theme_color": "#b06a24",
-  "icons": []
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/rs-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
 }

@@ -110,7 +110,7 @@ export default function OmborPage() {
   const lots = data!.inventory;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <h1 className="text-xl font-bold">Ombor</h1>
 
       {/* ─── Umumiy chiplar ─── */}

@@ -151,7 +151,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
       : TABS_WOOD;
 
   /** Biznes brendi: logo (yuklangan bo'lsa) + nom. */
-  const brandName = biz?.name ?? 'WoodFlow';
+  const brandName = biz?.name ?? 'RS Development';
   const BrandLogo = ({ size }: { size: string }) =>
     biz?.logoUrl ? (
       // eslint-disable-next-line @next/next/no-img-element

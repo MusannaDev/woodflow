@@ -68,9 +68,13 @@ export default function HomePage() {
       {/* ───── Navbar ───── */}
       <header className="sticky top-0 z-20 backdrop-blur bg-[#faf8f4]/80 border-b border-neutral-200/70">
         <div className="max-w-6xl mx-auto px-5 h-16 flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2 font-bold text-lg tracking-tight">
-            <span className="w-3 h-3 rounded-full bg-gradient-to-br from-amber-400 to-amber-700" />
-            WoodFlow
+          <Link href="/" className="flex items-center gap-2.5 font-bold text-lg tracking-tight">
+            <img
+              src="/rs-mark.png"
+              alt="RS Development"
+              className="w-9 h-9 rounded-full object-cover object-center ring-1 ring-amber-700/25"
+            />
+            RS Development
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm text-neutral-600 ml-4">
             <a href="#imkoniyatlar" className="hover:text-neutral-900 transition-colors">Imkoniyatlar</a>
@@ -105,7 +109,12 @@ export default function HomePage() {
       <section className="relative overflow-hidden">
         <WoodRings className="absolute -right-32 -top-32 w-[520px] h-[520px] text-amber-700/10" />
         <WoodRings className="absolute -left-40 top-64 w-[420px] h-[420px] text-amber-700/[0.07]" />
-        <div className="relative max-w-6xl mx-auto px-5 pt-20 pb-24 text-center">
+        <div className="relative max-w-6xl mx-auto px-5 pt-16 pb-24 text-center">
+          <img
+            src="/rs-wordmark.png"
+            alt="RS Development"
+            className="mx-auto mb-8 w-40 h-40 sm:w-48 sm:h-48 rounded-3xl object-cover shadow-2xl shadow-neutral-900/25 ring-1 ring-amber-700/20"
+          />
           <p className="inline-flex items-center gap-2 text-[13px] font-medium text-amber-800 bg-amber-100/70 border border-amber-200 rounded-full px-4 py-1.5">
             🪵 Yog&apos;och &amp; taxta biznesi uchun maxsus
           </p>
@@ -114,7 +123,7 @@ export default function HomePage() {
             <span className="text-amber-700 italic">bitta platforma</span>
           </h1>
           <p className="mt-6 text-lg text-neutral-600 max-w-2xl mx-auto leading-relaxed">
-            Kirim, ombor, savdo, qarz va xarajat — siz kiritasiz, WoodFlow hisoblaydi.
+            Kirim, ombor, savdo, qarz va xarajat — siz kiritasiz, RS Development hisoblaydi.
             Istalgan payt aniq foydangizni ko&apos;rasiz: telefonda ham, kompyuterda ham.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
@@ -229,8 +238,12 @@ export default function HomePage() {
       <footer className="border-t border-neutral-200">
         <div className="max-w-6xl mx-auto px-5 py-8 flex flex-col sm:flex-row items-center gap-3 text-sm text-neutral-400">
           <Link href="/" className="flex items-center gap-2 font-semibold text-neutral-600">
-            <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-amber-400 to-amber-700" />
-            WoodFlow
+            <img
+              src="/rs-mark.png"
+              alt="RS Development"
+              className="w-6 h-6 rounded-full object-cover object-center ring-1 ring-amber-700/25"
+            />
+            RS Development
           </Link>
           <span className="sm:ml-auto">
             © {new Date().getFullYear()} · Yog&apos;och &amp; Taxta biznes platformasi

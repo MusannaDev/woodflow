@@ -89,10 +89,14 @@ export default function SignupPage() {
         <div className="w-full max-w-[420px]">
           <Link
             href="/"
-            className="lg:hidden mb-8 flex items-center gap-2 text-xl font-bold w-fit"
+            className="lg:hidden mb-8 flex items-center gap-2.5 text-xl font-bold w-fit"
           >
-            <span className="w-3 h-3 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 inline-block" />
-            WoodFlow
+            <img
+              src="/rs-logo.png"
+              alt="RS Development"
+              className="w-9 h-9 rounded-lg object-cover ring-1 ring-amber-700/20"
+            />
+            RS Development
           </Link>
 
           {pickList ? (

@@ -81,7 +81,7 @@ export default function DashboardPage() {
     .slice(0, 6);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       {/* KPI kartalar */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {kpis.map((k) => (

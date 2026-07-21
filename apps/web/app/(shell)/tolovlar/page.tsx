@@ -111,7 +111,7 @@ export default function TolovlarPage() {
     return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <h1 className="text-xl font-bold">To&apos;lovlar / Qarzlar</h1>
 
       {/* Chiplar */}

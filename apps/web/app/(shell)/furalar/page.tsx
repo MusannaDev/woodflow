@@ -127,7 +127,7 @@ export default function FuralarPage() {
   const selected = shipments.find((s) => s.id === selectedId);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Furalar</h1>
         <button
@@ -154,7 +154,7 @@ export default function FuralarPage() {
       {showForm && (
         <form
           onSubmit={onSubmit}
-          className="card p-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-[fadeIn_.3s_ease]"
+          className="card p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-[fadeIn_.3s_ease]"
         >
           <label className="grid gap-1.5">
             <span className="field-label">Fura nomeri</span>
@@ -223,7 +223,7 @@ export default function FuralarPage() {
         </form>
       )}
 
-      <div className="grid lg:grid-cols-[1fr_400px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 items-start">
         {/* ─── Ro'yxat ─── */}
         <section className="card overflow-hidden">
           {shipments.length === 0 ? (

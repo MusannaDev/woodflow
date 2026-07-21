@@ -35,7 +35,7 @@ export default function TayyorOmborPage() {
   );
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <h1 className="text-xl font-bold">Tayyor mahsulot ombori</h1>
 
       {/* Chiplar */}

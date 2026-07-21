@@ -175,7 +175,7 @@ export default function IshchilarPage() {
   const workerRequests = reqData?.pendingWorkerRequests ?? [];
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <h1 className="text-xl font-bold">Ishchilar</h1>
 
       {/* ── Kirish so'rovlari (egasi tasdiqlaydi) ── */}
@@ -236,7 +236,7 @@ export default function IshchilarPage() {
         </p>
       )}
 
-      <div className="grid lg:grid-cols-[1fr_340px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
         {/* ─── Ro'yxat ─── */}
         <section className="card overflow-hidden order-2 lg:order-1">
           {employees.length === 0 ? (

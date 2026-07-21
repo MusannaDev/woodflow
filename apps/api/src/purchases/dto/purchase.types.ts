@@ -1,7 +1,8 @@
-import { Field, Float, InputType, ObjectType, registerEnumType } from '@nestjs/graphql';
+import { Field, Float, InputType, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { Currency, PurchaseSource } from '@prisma/client';
 import {
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -35,6 +36,9 @@ export class Purchase {
 
   @Field(() => Float)
   volumeM3!: number;
+
+  @Field(() => Int, { nullable: true })
+  quantity!: number | null; // dona soni (ixtiyoriy)
 
   @Field(() => Float)
   unitPrice!: number; // asl valyutada (RUB yoki UZS) / m³
@@ -86,6 +90,13 @@ export class CreatePurchaseInput {
   @IsNumber()
   @IsPositive()
   volumeM3!: number;
+
+  /** Dona soni (ixtiyoriy) — lot dona hisobini ham yuritadi. */
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  quantity?: number;
 
   @Field(() => Float)
   @IsNumber()

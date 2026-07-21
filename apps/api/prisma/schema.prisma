@@ -282,6 +282,7 @@ model Purchase {
   woodType     String // Qarag'ay, Terak, Qayin...
   grade        String // 1-nav, 2-nav...
   volumeM3     Decimal        @db.Decimal(12, 4)
+  quantity     Int? // dona soni (ixtiyoriy)
   unitPrice    Decimal        @db.Decimal(18, 2) // asl valyutada (RUB yoki UZS)
   currency     Currency // RUB | UZS
   exchangeRate Decimal        @default(1) @db.Decimal(14, 6) // kirim kunida muzlatiladi
@@ -308,6 +309,7 @@ model InventoryLot {
   woodType          String
   grade             String
   volumeM3Remaining Decimal   @db.Decimal(12, 4) // sotiladigan qoldiq
+  quantityRemaining Int? // qoldiq dona (kirimda kiritilgan bo'lsa)
   unitCostUzsPerM3  Decimal   @db.Decimal(18, 2) // tannarx / m³
   status            LotStatus @default(AVAILABLE)
 
@@ -328,6 +330,7 @@ model DefectRecord {
   id       String   @id @default(cuid())
   lotId    String
   volumeM3 Decimal  @db.Decimal(12, 4) // qoldiqdan minus qilinadi
+  quantity Int? // nuqson dona (ixtiyoriy)
   reason   String?
   date     DateTime
 
@@ -360,22 +363,25 @@ model Sale {
 }
 
 model SaleItem {
-  id           String  @id @default(cuid())
-  saleId       String
-  lotId        String
-  quantity     Int // dona soni
-  length       Decimal @db.Decimal(8, 3) // m
-  width        Decimal @db.Decimal(8, 3) // m
-  thickness    Decimal @db.Decimal(8, 3) // m
-  volumeM3     Decimal @db.Decimal(12, 4) // = L×W×T×qty (avto)
-  unitPriceUzs Decimal @db.Decimal(18, 2)
-  lineTotalUzs Decimal @db.Decimal(18, 2)
+  id            String   @id @default(cuid())
+  saleId        String
+  lotId         String? // xomashyo lot (Yog'och) — o'lchamli savdo
+  finishedLotId String? // tayyor mahsulot lot (Taxta) — dona savdosi
+  quantity      Int // dona soni
+  length        Decimal? @db.Decimal(8, 3) // m (tayyor mahsulotda null)
+  width         Decimal? @db.Decimal(8, 3) // m
+  thickness     Decimal? @db.Decimal(8, 3) // m
+  volumeM3      Decimal  @db.Decimal(12, 4) // = L×W×T×qty (tayyorda 0)
+  unitPriceUzs  Decimal  @db.Decimal(18, 2)
+  lineTotalUzs  Decimal  @db.Decimal(18, 2)
 
-  sale Sale         @relation(fields: [saleId], references: [id])
-  lot  InventoryLot @relation(fields: [lotId], references: [id])
+  sale        Sale              @relation(fields: [saleId], references: [id])
+  lot         InventoryLot?     @relation(fields: [lotId], references: [id])
+  finishedLot FinishedGoodsLot? @relation(fields: [finishedLotId], references: [id])
 
   @@index([saleId])
   @@index([lotId])
+  @@index([finishedLotId])
 }
 
 model Payment {
@@ -446,6 +452,7 @@ model FinishedGoodsLot {
   workspace Workspace        @relation(fields: [workspaceId], references: [id])
   product   ProductTemplate  @relation(fields: [productId], references: [id])
   batch     ProductionBatch? @relation(fields: [batchId], references: [id])
+  saleItems SaleItem[]
 
   createdAt DateTime @default(now())
 
@@ -458,6 +465,7 @@ model StockTransfer {
   toWorkspaceId    String // 2-biznes (xarajat)
   lotId            String
   volumeM3         Decimal  @db.Decimal(12, 4)
+  quantity         Int? // dona (ixtiyoriy)
   internalPriceUzs Decimal  @db.Decimal(18, 2) // ichki narx
   date             DateTime
 

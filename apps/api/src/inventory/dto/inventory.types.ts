@@ -1,6 +1,6 @@
 import { Field, Float, Int, InputType, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { LotStatus } from '@prisma/client';
-import { IsNumber, IsOptional, IsPositive, IsString, IsDate } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsPositive, IsString, IsDate } from 'class-validator';
 
 registerEnumType(LotStatus, { name: 'LotStatus' });
 
@@ -17,6 +17,10 @@ export class InventoryLot {
 
   @Field(() => Float)
   volumeM3Remaining!: number;
+
+  /** Qoldiq dona (kirimda kiritilgan bo'lsa; null = dona yuritilmaydi). */
+  @Field(() => Int, { nullable: true })
+  quantityRemaining!: number | null;
 
   @Field(() => Float)
   unitCostUzsPerM3!: number;
@@ -39,6 +43,10 @@ export class InventorySummary {
 
   @Field(() => Float)
   defectM3!: number; // nuqson (chiqarilgan)
+
+  /** Jami qoldiq dona (dona yuritiladigan lotlar bo'yicha). */
+  @Field(() => Int)
+  totalQuantity!: number;
 
   @Field(() => Int)
   lotCount!: number;
@@ -72,6 +80,13 @@ export class RecordDefectInput {
   @IsNumber()
   @IsPositive()
   volumeM3!: number;
+
+  /** Nuqson dona (ixtiyoriy) — lot dona hisobidan ham ayiriladi. */
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  quantity?: number;
 
   @Field({ nullable: true })
   @IsOptional()

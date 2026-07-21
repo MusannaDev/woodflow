@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { CREATE_TRANSFER, TRANSFERS_PAGE } from '../../../lib/queries';
-import { formatMoneyInput, parseDecimal, parseMoney } from '../../../lib/format';
+import { formatMoneyInput, parseDecimal, parseMoney, parseQty } from '../../../lib/format';
 import { session, WorkspaceBrief } from '../../../lib/session';
 
 /**
@@ -18,6 +18,7 @@ interface TransferRow {
   toWorkspaceId: string;
   lotId: string;
   volumeM3: number;
+  quantity: number | null;
   internalPriceUzs: number;
   date: string;
 }
@@ -27,6 +28,7 @@ interface LotRow {
   grade: string;
   source: string;
   volumeM3Remaining: number;
+  quantityRemaining: number | null;
 }
 interface PageData {
   transfers: TransferRow[];
@@ -52,6 +54,7 @@ export default function TransferPage() {
 
   const [lotId, setLotId] = useState('');
   const [volume, setVolume] = useState('');
+  const [pieces, setPieces] = useState('');
   const [price, setPrice] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -63,6 +66,9 @@ export default function TransferPage() {
   const vol = parseDecimal(volume);
   const priceNum = parseMoney(price);
   const exceeds = lot !== null && vol > lot.volumeM3Remaining;
+  const piecesNum = parseQty(pieces);
+  const exceedsPieces =
+    lot?.quantityRemaining != null && piecesNum > lot.quantityRemaining;
   const isWood = ws?.type === 'WOOD_TRADING';
   const canSend = isWood && ws?.role === 'OWNER'; // yuborish faqat egaga
 
@@ -80,6 +86,8 @@ export default function TransferPage() {
             toWorkspaceId: other.id,
             lotId,
             volumeM3: vol,
+            quantity:
+              lot?.quantityRemaining != null && piecesNum > 0 ? piecesNum : null,
             internalPriceUzs: priceNum,
           },
         },
@@ -89,6 +97,7 @@ export default function TransferPage() {
         text: `${vol} m³ "${other.name}"ga o'tkazildi — ${fmt(priceNum)} so'm (bu yerga daromad, u yerga xarajat).`,
       });
       setVolume('');
+      setPieces('');
       setPrice('');
       await refetch();
     } catch (err) {
@@ -141,7 +150,7 @@ export default function TransferPage() {
               <option value="">— Lot tanlang —</option>
               {lots.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.woodType} · {l.grade} — qoldiq {fmt(l.volumeM3Remaining, 1)} m³
+                  {l.woodType} · {l.grade} — qoldiq {fmt(l.volumeM3Remaining, 1)} m³{l.quantityRemaining != null ? ` · ${fmt(l.quantityRemaining)} dona` : ''}
                 </option>
               ))}
             </select>
@@ -158,6 +167,20 @@ export default function TransferPage() {
                 className="field-input"
               />
             </label>
+            {lot?.quantityRemaining != null && (
+              <label className="grid gap-1.5">
+                <span className="field-label">
+                  Dona (maks {fmt(lot.quantityRemaining)})
+                </span>
+                <input
+                  value={pieces}
+                  onChange={(e) => setPieces(formatMoneyInput(e.target.value))}
+                  inputMode="numeric"
+                  placeholder="500"
+                  className="field-input"
+                />
+              </label>
+            )}
             <label className="grid gap-1.5">
               <span className="field-label">Jami ichki narx (so&apos;m)</span>
               <input
@@ -184,7 +207,7 @@ export default function TransferPage() {
           )}
 
           <button
-            disabled={!lotId || vol <= 0 || priceNum <= 0 || exceeds || saving}
+            disabled={!lotId || vol <= 0 || priceNum <= 0 || exceeds || exceedsPieces || saving}
             className="btn-primary sm:max-w-xs"
           >
             {saving ? 'O‘tkazilmoqda…' : 'Transfer qilish'}
@@ -216,6 +239,7 @@ export default function TransferPage() {
                   <th className="px-5 py-3 font-semibold">SANA</th>
                   <th className="px-5 py-3 font-semibold">YO&apos;NALISH</th>
                   <th className="px-5 py-3 font-semibold text-right">HAJM</th>
+                  <th className="px-5 py-3 font-semibold text-right">DONA</th>
                   <th className="px-5 py-3 font-semibold text-right">
                     ICHKI NARX
                   </th>
@@ -245,6 +269,9 @@ export default function TransferPage() {
                       </td>
                       <td className="px-5 py-3.5 text-right tabular-nums font-semibold">
                         {fmt(t.volumeM3, 1)} m³
+                      </td>
+                      <td className="px-5 py-3.5 text-right tabular-nums text-neutral-600">
+                        {t.quantity != null ? fmt(t.quantity) : '—'}
                       </td>
                       <td className="px-5 py-3.5 text-right tabular-nums">
                         {fmt(t.internalPriceUzs)}

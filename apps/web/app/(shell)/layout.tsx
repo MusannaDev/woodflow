@@ -29,6 +29,7 @@ const SHARED_TAIL: MenuItem[] = [
 const MENU_WOOD: MenuItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: '▦' },
   { href: '/furalar', label: 'Furalar', icon: '▤' },
+  { href: '/kirim', label: 'Kirim', icon: '⬇' },
   { href: '/ombor', label: 'Ombor', icon: '▣' },
   { href: '/savdo', label: 'Savdo', icon: '◉' },
   ...SHARED_TAIL,

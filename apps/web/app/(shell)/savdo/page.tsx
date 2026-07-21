@@ -2,13 +2,20 @@
 
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useMemo, useState } from 'react';
-import { CREATE_SALE, SALES_PAGE } from '../../../lib/queries';
-import { formatMoneyInput, parseDecimal, parseMoney, parseQty } from '../../../lib/format';
+import { ADD_PAYMENT, CREATE_SALE, SALES_PAGE } from '../../../lib/queries';
+import {
+  formatMoneyInput,
+  parseDecimal,
+  parseMoney,
+  parseQty,
+} from '../../../lib/format';
+import { session } from '../../../lib/session';
 
 /**
  * Savdo — platformaning yuragi (UI hujjati §7.4).
- * Chapda forma, o'ngda JONLI hisob: o'lcham kiritilganda m³ va summa
- * real vaqtda ko'rinadi. Saqlanganда ombordan avtomatik yechiladi.
+ *  Yog'och: xomashyo lotdan, o'lcham → jonli m³ hisob.
+ *  Taxta:  TAYYOR OMBORdan (pol taxta/rika) — o'lchamsiz, dona bilan.
+ * To'lov: 💵 Naqd (so'm yoki USD, kurs bilan) yoki 📝 Qarz.
  */
 
 interface CustomerRow {
@@ -21,6 +28,13 @@ interface LotRow {
   grade: string;
   source: string;
   volumeM3Remaining: number;
+  quantityRemaining: number | null;
+}
+interface FinishedRow {
+  id: string;
+  productName: string;
+  quantityRemaining: number;
+  unitCostUzsPerPiece: number;
 }
 interface SaleRow {
   id: string;
@@ -34,6 +48,7 @@ interface SaleRow {
 interface PageData {
   customers: CustomerRow[];
   inventory: LotRow[];
+  finishedGoods: FinishedRow[];
   sales: SaleRow[];
 }
 
@@ -44,9 +59,7 @@ const SALE_TYPES = [
 ] as const;
 
 const fmt = (n: number, d = 0) =>
-  new Intl.NumberFormat('uz-UZ', {
-    maximumFractionDigits: d,
-  }).format(n);
+  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: d }).format(n);
 
 const sourceLabel = (s: string) =>
   s === 'RUSSIA_IMPORT'
@@ -58,6 +71,11 @@ const sourceLabel = (s: string) =>
 export default function SavdoPage() {
   const { data, loading, error, refetch } = useQuery<PageData>(SALES_PAGE);
   const [createSale, { loading: saving }] = useMutation(CREATE_SALE);
+  const [addPayment] = useMutation(ADD_PAYMENT);
+
+  // Taxta workspace — tayyor ombordan sotadi
+  const isLumber =
+    session.currentWorkspace()?.type === 'LUMBER_PRODUCTION';
 
   const [customerId, setCustomerId] = useState('');
   const [saleType, setSaleType] =
@@ -68,14 +86,26 @@ export default function SavdoPage() {
   const [thickness, setThickness] = useState('0.05');
   const [quantity, setQuantity] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
+
+  // ── To'lov holati ──
+  const [payMode, setPayMode] = useState<'CASH' | 'DEBT'>('CASH');
+  const [payCurrency, setPayCurrency] = useState<'UZS' | 'USD'>('UZS');
+  const [usdAmount, setUsdAmount] = useState('');
+  const [usdRate, setUsdRate] = useState('');
+
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const lots = useMemo(
     () => (data?.inventory ?? []).filter((l) => l.volumeM3Remaining > 0),
     [data],
   );
+  const finished = useMemo(
+    () => (data?.finishedGoods ?? []).filter((f) => f.quantityRemaining > 0),
+    [data],
+  );
   const lot = lots.find((l) => l.id === lotId) ?? null;
-  const perPiece = saleType === 'PER_PIECE';
+  const fLot = finished.find((f) => f.id === lotId) ?? null;
+  const perPiece = isLumber || saleType === 'PER_PIECE';
 
   // ─── JONLI HISOB ───
   const L = parseDecimal(length);
@@ -84,41 +114,111 @@ export default function SavdoPage() {
   const qty = parseQty(quantity);
   const price = parseMoney(unitPrice);
 
-  const volPerPiece = L * W * T;
+  const volPerPiece = isLumber ? 0 : L * W * T;
   const totalVol = volPerPiece * qty;
   const totalSum = perPiece ? qty * price : totalVol * price;
+
+  // Xomashyo qoldiqlari
   const remaining = lot ? lot.volumeM3Remaining - totalVol : null;
   const exceeds = remaining !== null && remaining < 0;
+  const remainingPieces = isLumber
+    ? fLot
+      ? fLot.quantityRemaining - qty
+      : null
+    : lot?.quantityRemaining != null
+      ? lot.quantityRemaining - qty
+      : null;
+  const exceedsPieces = remainingPieces !== null && remainingPieces < 0;
+
+  // To'lov hisobi
+  const usdNum = parseMoney(usdAmount);
+  const rateNum = parseDecimal(usdRate);
+  const usdInUzs = usdNum * rateNum;
+  const cashUzs =
+    payMode === 'DEBT' ? 0 : payCurrency === 'UZS' ? totalSum : usdInUzs;
+  const debtAfter = totalSum - cashUzs;
+  const overPaid = payMode === 'CASH' && payCurrency === 'USD' && usdInUzs > totalSum + 0.01;
+  const usdIncomplete =
+    payMode === 'CASH' && payCurrency === 'USD' && (usdNum <= 0 || rateNum <= 0);
 
   const canSubmit =
-    !!lotId && qty > 0 && price > 0 && totalVol > 0 && !exceeds && !saving;
+    !!lotId &&
+    qty > 0 &&
+    price > 0 &&
+    (isLumber || totalVol > 0) &&
+    !exceeds &&
+    !exceedsPieces &&
+    !overPaid &&
+    !(payMode === 'CASH' && payCurrency === 'USD' && usdIncomplete) &&
+    !saving;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setMsg(null);
     try {
-      await createSale({
+      const res = await createSale({
         variables: {
           input: {
             customerId: customerId || null,
-            saleType,
+            saleType: isLumber ? 'PER_PIECE' : saleType,
             date: new Date().toISOString(),
             items: [
-              {
-                lotId,
-                quantity: qty,
-                length: L,
-                width: W,
-                thickness: T,
-                unitPriceUzs: price,
-              },
+              isLumber
+                ? {
+                    finishedLotId: lotId,
+                    quantity: qty,
+                    unitPriceUzs: price,
+                  }
+                : {
+                    lotId,
+                    quantity: qty,
+                    length: L,
+                    width: W,
+                    thickness: T,
+                    unitPriceUzs: price,
+                  },
             ],
           },
         },
       });
-      setMsg({ ok: true, text: `Savdo saqlandi — ${fmt(totalSum)} so'm, ombordan ${totalVol.toFixed(2)} m³ yechildi.` });
+
+      const saleId = res.data.createSale.id as string;
+
+      // 💵 Naqd bo'lsa — darhol to'lov yozamiz
+      if (payMode === 'CASH') {
+        if (payCurrency === 'UZS') {
+          await addPayment({
+            variables: {
+              input: { saleId, amount: totalSum, currency: 'UZS' },
+            },
+          });
+        } else {
+          await addPayment({
+            variables: {
+              input: {
+                saleId,
+                amount: usdNum,
+                currency: 'USD',
+                exchangeRate: rateNum,
+              },
+            },
+          });
+        }
+      }
+
+      const debtText =
+        payMode === 'DEBT'
+          ? ` To'liq QARZ: ${fmt(totalSum)} so'm.`
+          : debtAfter > 0.01
+            ? ` Qisman to'landi, qarz: ${fmt(debtAfter)} so'm.`
+            : " To'liq to'landi.";
+      setMsg({
+        ok: true,
+        text: `Savdo saqlandi — ${fmt(totalSum)} so'm.${debtText}`,
+      });
       setQuantity('');
       setUnitPrice('');
+      setUsdAmount('');
       await refetch();
     } catch (err) {
       setMsg({
@@ -140,10 +240,7 @@ export default function SavdoPage() {
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
         {/* ─── FORMA ─── */}
-        <form
-          onSubmit={onSubmit}
-          className="card p-5 md:p-6 grid gap-5"
-        >
+        <form onSubmit={onSubmit} className="card p-5 md:p-6 grid gap-5">
           <div className="grid sm:grid-cols-2 gap-4">
             <label className="grid gap-1.5">
               <span className="field-label">Mijoz (ixtiyoriy)</span>
@@ -161,65 +258,89 @@ export default function SavdoPage() {
               </select>
             </label>
 
-            <label className="grid gap-1.5">
-              <span className="field-label">Savdo turi</span>
-              <select
-                value={saleType}
-                onChange={(e) =>
-                  setSaleType(e.target.value as typeof saleType)
-                }
-                className="field-input"
-              >
-                {SALE_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {!isLumber && (
+              <label className="grid gap-1.5">
+                <span className="field-label">Savdo turi</span>
+                <select
+                  value={saleType}
+                  onChange={(e) =>
+                    setSaleType(e.target.value as typeof saleType)
+                  }
+                  className="field-input"
+                >
+                  {SALE_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
 
           <label className="grid gap-1.5">
-            <span className="field-label">Ombordan (lot)</span>
+            <span className="field-label">
+              {isLumber ? 'Tayyor ombordan (mahsulot)' : 'Ombordan (lot)'}
+            </span>
             <select
               value={lotId}
               onChange={(e) => setLotId(e.target.value)}
               className="field-input"
             >
-              <option value="">— Lot tanlang —</option>
-              {lots.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.woodType} · {l.grade} · {sourceLabel(l.source)} — qoldiq{' '}
-                  {fmt(l.volumeM3Remaining, 1)} m³
-                </option>
-              ))}
+              <option value="">
+                {isLumber ? '— Mahsulot tanlang —' : '— Lot tanlang —'}
+              </option>
+              {isLumber
+                ? finished.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.productName} — qoldiq {fmt(f.quantityRemaining)} dona
+                      · tannarx {fmt(f.unitCostUzsPerPiece)} so&apos;m
+                    </option>
+                  ))
+                : lots.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.woodType} · {l.grade} · {sourceLabel(l.source)} —
+                      qoldiq {fmt(l.volumeM3Remaining, 1)} m³
+                      {l.quantityRemaining != null
+                        ? ` · ${fmt(l.quantityRemaining)} dona`
+                        : ''}
+                    </option>
+                  ))}
             </select>
+            {isLumber && finished.length === 0 && (
+              <span className="text-xs text-amber-700">
+                Tayyor mahsulot yo&apos;q — avval «Ishlab chiqarish»da partiya
+                yarating.
+              </span>
+            )}
           </label>
 
-          <fieldset className="grid gap-3">
-            <legend className="field-label text-brand font-semibold mb-1.5">
-              O&apos;LCHAM (avtomatik m³ ga aylanadi)
-            </legend>
-            <div className="grid grid-cols-3 gap-3">
-              {(
-                [
-                  ['Uzunlik (m)', length, setLength],
-                  ['En (m)', width, setWidth],
-                  ['Qalinlik (m)', thickness, setThickness],
-                ] as const
-              ).map(([lab, val, set]) => (
-                <label key={lab} className="grid gap-1.5">
-                  <span className="field-label text-xs">{lab}</span>
-                  <input
-                    value={val}
-                    onChange={(e) => set(e.target.value)}
-                    inputMode="decimal"
-                    className="field-input"
-                  />
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          {!isLumber && (
+            <fieldset className="grid gap-3">
+              <legend className="field-label text-brand font-semibold mb-1.5">
+                O&apos;LCHAM (avtomatik m³ ga aylanadi)
+              </legend>
+              <div className="grid grid-cols-3 gap-3">
+                {(
+                  [
+                    ['Uzunlik (m)', length, setLength],
+                    ['En (m)', width, setWidth],
+                    ['Qalinlik (m)', thickness, setThickness],
+                  ] as const
+                ).map(([lab, val, set]) => (
+                  <label key={lab} className="grid gap-1.5">
+                    <span className="field-label text-xs">{lab}</span>
+                    <input
+                      value={val}
+                      onChange={(e) => set(e.target.value)}
+                      inputMode="decimal"
+                      className="field-input"
+                    />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1.5">
@@ -246,6 +367,116 @@ export default function SavdoPage() {
             </label>
           </div>
 
+          {/* ─── TO'LOV ─── */}
+          <fieldset className="grid gap-3">
+            <legend className="field-label text-brand font-semibold mb-1.5">
+              TO&apos;LOV
+            </legend>
+            <div className="grid grid-cols-2 gap-3">
+              {(
+                [
+                  { value: 'CASH', icon: '💵', title: 'Naqd', desc: "Hozir to'laydi" },
+                  { value: 'DEBT', icon: '📝', title: 'Qarz', desc: "Keyin to'laydi" },
+                ] as const
+              ).map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setPayMode(m.value)}
+                  className={`text-left rounded-xl border-2 px-4 py-3 transition-all ${
+                    payMode === m.value
+                      ? 'border-brand bg-brand-faint shadow-md shadow-brand/10'
+                      : 'border-neutral-200 bg-white/70 hover:border-brand/40'
+                  }`}
+                >
+                  <span className="font-semibold text-sm">
+                    {m.icon} {m.title}
+                  </span>
+                  <span className="block text-[11px] text-neutral-500 mt-0.5">
+                    {m.desc}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {payMode === 'CASH' && (
+              <div className="grid gap-3 animate-[fadeIn_.3s_ease]">
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="grid gap-1.5">
+                    <span className="field-label text-xs">Valyuta</span>
+                    <select
+                      value={payCurrency}
+                      onChange={(e) =>
+                        setPayCurrency(e.target.value as 'UZS' | 'USD')
+                      }
+                      className="field-input"
+                    >
+                      <option value="UZS">so&apos;m</option>
+                      <option value="USD">USD ($)</option>
+                    </select>
+                  </label>
+                  {payCurrency === 'USD' && (
+                    <label className="grid gap-1.5">
+                      <span className="field-label text-xs">
+                        Kurs (1 USD = ? so&apos;m)
+                      </span>
+                      <input
+                        value={usdRate}
+                        onChange={(e) => setUsdRate(e.target.value)}
+                        inputMode="decimal"
+                        placeholder="12 600"
+                        className="field-input"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                {payCurrency === 'UZS' ? (
+                  <p className="text-xs text-neutral-500 bg-neutral-50 border border-neutral-100 rounded-lg px-3 py-2">
+                    Jami summa (
+                    <b className="tabular-nums">
+                      {totalSum > 0 ? fmt(totalSum) : 0} so&apos;m
+                    </b>
+                    ) to&apos;liq naqd sifatida yoziladi.
+                  </p>
+                ) : (
+                  <div className="grid gap-2">
+                    <label className="grid gap-1.5">
+                      <span className="field-label text-xs">
+                        Qabul qilingan USD
+                      </span>
+                      <input
+                        value={usdAmount}
+                        onChange={(e) =>
+                          setUsdAmount(formatMoneyInput(e.target.value))
+                        }
+                        inputMode="decimal"
+                        placeholder="100"
+                        className="field-input"
+                      />
+                    </label>
+                    {usdNum > 0 && rateNum > 0 && (
+                      <p
+                        className={`text-xs rounded-lg px-3 py-2 border ${
+                          overPaid
+                            ? 'text-red-600 bg-red-50 border-red-100'
+                            : 'text-neutral-500 bg-neutral-50 border-neutral-100'
+                        }`}
+                      >
+                        = <b className="tabular-nums">{fmt(usdInUzs)}</b> so&apos;m
+                        {overPaid
+                          ? ` — jami summadan (${fmt(totalSum)}) oshib ketdi!`
+                          : debtAfter > 0.01
+                            ? ` · qolgan QARZ: ${fmt(debtAfter)} so'm`
+                            : " · to'liq qoplaydi"}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </fieldset>
+
           {msg && (
             <p
               className={`text-sm rounded-lg px-3.5 py-2.5 border ${
@@ -269,38 +500,70 @@ export default function SavdoPage() {
             Tizim avtomatik hisoblaydi
           </h2>
           <dl className="grid gap-2.5 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-neutral-500">Bir dona hajmi</dt>
-              <dd className="font-semibold tabular-nums">
-                {volPerPiece > 0 ? volPerPiece.toFixed(4) : '—'} m³
-              </dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-neutral-500">
-                Jami hajm {qty > 0 ? `(${fmt(qty)} dona)` : ''}
-              </dt>
-              <dd className="font-semibold tabular-nums">
-                {totalVol > 0 ? totalVol.toFixed(2) : '—'} m³
-              </dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-neutral-500">Ombordan yechiladi</dt>
-              <dd className="font-semibold tabular-nums text-red-600">
-                {totalVol > 0 ? `−${totalVol.toFixed(2)}` : '—'} m³
-              </dd>
-            </div>
-            <div className="flex justify-between border-b border-brand/10 pb-2.5">
-              <dt className="text-neutral-500">Qolgan qoldiq</dt>
-              <dd
-                className={`font-semibold tabular-nums ${
-                  exceeds ? 'text-red-600' : ''
-                }`}
-              >
-                {remaining !== null ? remaining.toFixed(2) : '—'} m³
-              </dd>
-            </div>
+            {!isLumber && (
+              <>
+                <div className="flex justify-between">
+                  <dt className="text-neutral-500">Bir dona hajmi</dt>
+                  <dd className="font-semibold tabular-nums">
+                    {volPerPiece > 0 ? volPerPiece.toFixed(4) : '—'} m³
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-neutral-500">
+                    Jami hajm {qty > 0 ? `(${fmt(qty)} dona)` : ''}
+                  </dt>
+                  <dd className="font-semibold tabular-nums">
+                    {totalVol > 0 ? totalVol.toFixed(2) : '—'} m³
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-neutral-500">Ombordan yechiladi</dt>
+                  <dd className="font-semibold tabular-nums text-red-600">
+                    {totalVol > 0 ? `−${totalVol.toFixed(2)}` : '—'} m³
+                  </dd>
+                </div>
+              </>
+            )}
+            {isLumber && (
+              <div className="flex justify-between">
+                <dt className="text-neutral-500">Sotiladigan dona</dt>
+                <dd className="font-semibold tabular-nums">
+                  {qty > 0 ? fmt(qty) : '—'}
+                </dd>
+              </div>
+            )}
+            {remainingPieces !== null && (
+              <div className="flex justify-between">
+                <dt className="text-neutral-500">Qolgan dona</dt>
+                <dd
+                  className={`font-semibold tabular-nums ${
+                    exceedsPieces ? 'text-red-600' : ''
+                  }`}
+                >
+                  {remainingPieces}
+                </dd>
+              </div>
+            )}
+            {!isLumber && (
+              <div className="flex justify-between border-b border-brand/10 pb-2.5">
+                <dt className="text-neutral-500">Qolgan qoldiq</dt>
+                <dd
+                  className={`font-semibold tabular-nums ${
+                    exceeds ? 'text-red-600' : ''
+                  }`}
+                >
+                  {remaining !== null ? remaining.toFixed(2) : '—'} m³
+                </dd>
+              </div>
+            )}
           </dl>
 
+          {exceedsPieces && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              ⚠ Omborda dona yetarli emas! Qoldiq:{' '}
+              {isLumber ? fLot?.quantityRemaining : lot?.quantityRemaining} dona
+            </p>
+          )}
           {exceeds && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
               ⚠ Omborda yetarli emas! Lot qoldig&apos;i:{' '}
@@ -318,10 +581,21 @@ export default function SavdoPage() {
                 so&apos;m
               </span>
             </div>
+            {payMode === 'DEBT' && totalSum > 0 && (
+              <div className="text-[11px] font-semibold text-amber-700 mt-1">
+                📝 To&apos;liq qarzga yoziladi
+              </div>
+            )}
+            {payMode === 'CASH' && totalSum > 0 && (
+              <div className="text-[11px] font-semibold text-emerald-700 mt-1">
+                💵 Naqd: {fmt(cashUzs)} so&apos;m
+                {debtAfter > 0.01 ? ` · qarz: ${fmt(debtAfter)}` : ''}
+              </div>
+            )}
           </div>
           <p className="text-[11px] text-neutral-400 leading-relaxed">
-            To&apos;lov so&apos;m yoki USD qabul qilinadi — narx baribir
-            so&apos;mda qoladi.
+            Narx doim so&apos;mda qoladi — USD faqat to&apos;lov sifatida, kurs
+            bilan so&apos;mga aylantiriladi.
           </p>
         </aside>
       </div>
@@ -342,7 +616,7 @@ export default function SavdoPage() {
                 <tr className="text-left text-[11px] tracking-wider text-neutral-400 border-b border-neutral-100">
                   <th className="px-5 py-2.5 font-semibold">SANA</th>
                   <th className="px-5 py-2.5 font-semibold">TURI</th>
-                  <th className="px-5 py-2.5 font-semibold text-right">HAJM</th>
+                  <th className="px-5 py-2.5 font-semibold text-right">HAJM/DONA</th>
                   <th className="px-5 py-2.5 font-semibold text-right">SUMMA</th>
                   <th className="px-5 py-2.5 font-semibold text-right">HOLAT</th>
                 </tr>
@@ -350,6 +624,7 @@ export default function SavdoPage() {
               <tbody className="divide-y divide-neutral-50">
                 {(data?.sales ?? []).map((s) => {
                   const vol = s.items.reduce((a, i) => a + i.volumeM3, 0);
+                  const pcs = s.items.reduce((a, i) => a + i.quantity, 0);
                   return (
                     <tr key={s.id}>
                       <td className="px-5 py-3 text-neutral-500">
@@ -360,7 +635,7 @@ export default function SavdoPage() {
                           s.saleType}
                       </td>
                       <td className="px-5 py-3 text-right tabular-nums">
-                        {vol.toFixed(1)} m³
+                        {vol > 0 ? `${vol.toFixed(1)} m³` : `${fmt(pcs)} dona`}
                       </td>
                       <td className="px-5 py-3 text-right tabular-nums font-semibold">
                         {fmt(s.totalPriceUzs)}

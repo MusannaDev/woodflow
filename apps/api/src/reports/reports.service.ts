@@ -55,6 +55,8 @@ export class ReportsService {
     let soldCostUzs = new Decimal(0);
     let soldVolumeM3 = new Decimal(0);
     for (const item of soldItems) {
+      // Fura P&L — faqat xomashyo lotidan sotilganlar (lot bo'yicha filtrlangan)
+      if (!item.lot) continue;
       salesUzs = salesUzs.plus(item.lineTotalUzs.toString());
       const vol = new Decimal(item.volumeM3.toString());
       soldVolumeM3 = soldVolumeM3.plus(vol);
@@ -64,6 +66,7 @@ export class ReportsService {
     let defectLossUzs = new Decimal(0);
     let defectVolumeM3 = new Decimal(0);
     for (const d of defects) {
+      if (!d.lot) continue;
       const vol = new Decimal(d.volumeM3.toString());
       defectVolumeM3 = defectVolumeM3.plus(vol);
       defectLossUzs = defectLossUzs.plus(vol.mul(d.lot.unitCostUzsPerM3.toString()));
@@ -142,7 +145,9 @@ export class ReportsService {
             where: { sale: { workspaceId: ws.id } },
             select: {
               volumeM3: true,
+              quantity: true,
               lot: { select: { unitCostUzsPerM3: true } },
+              finishedLot: { select: { unitCostUzsPerPiece: true } },
             },
           }),
         ]);
@@ -153,11 +158,21 @@ export class ReportsService {
       );
       let soldCostUzs = new Decimal(0);
       for (const item of soldItems) {
-        soldCostUzs = soldCostUzs.plus(
-          new Decimal(item.volumeM3.toString()).mul(
-            item.lot.unitCostUzsPerM3.toString(),
-          ),
-        );
+        if (item.lot) {
+          // Xomashyo savdosi: m³ × tannarx/m³
+          soldCostUzs = soldCostUzs.plus(
+            new Decimal(item.volumeM3.toString()).mul(
+              item.lot.unitCostUzsPerM3.toString(),
+            ),
+          );
+        } else if (item.finishedLot) {
+          // Tayyor mahsulot savdosi: dona × tannarx/dona
+          soldCostUzs = soldCostUzs.plus(
+            new Decimal(item.finishedLot.unitCostUzsPerPiece.toString()).mul(
+              item.quantity,
+            ),
+          );
+        }
       }
       const expensesUzs = new Decimal(
         ownExpenseAgg._sum.amountUzs?.toString() ?? 0,

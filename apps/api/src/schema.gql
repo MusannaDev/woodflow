@@ -84,6 +84,7 @@ input CreatePurchaseInput {
   date: DateTime!
   exchangeRate: Float
   grade: String!
+  quantity: Int
   shipmentId: String
   source: PurchaseSource!
   supplierId: String
@@ -119,6 +120,7 @@ input CreateTransferInput {
   date: DateTime
   internalPriceUzs: Float!
   lotId: String!
+  quantity: Int
   toWorkspaceId: String!
   volumeM3: Float!
 }
@@ -211,6 +213,7 @@ type InventoryLot {
   createdAt: DateTime!
   grade: String!
   id: String!
+  quantityRemaining: Int
   source: String
   status: LotStatus!
   unitCostUzsPerM3: Float!
@@ -221,6 +224,7 @@ type InventoryLot {
 type InventorySummary {
   defectM3: Float!
   lotCount: Int!
+  totalQuantity: Int!
   totalRemainingM3: Float!
 }
 
@@ -315,6 +319,7 @@ type Purchase {
   exchangeRate: Float!
   grade: String!
   id: String!
+  quantity: Int
   shipmentId: String
   source: PurchaseSource!
   supplierId: String
@@ -360,6 +365,7 @@ type Query {
 input RecordDefectInput {
   date: DateTime
   lotId: String!
+  quantity: Int
   reason: String
   volumeM3: Float!
 }
@@ -400,24 +406,26 @@ type Sale {
 }
 
 type SaleItem {
+  finishedLotId: String
   id: String!
-  length: Float!
+  length: Float
   lineTotalUzs: Float!
-  lotId: String!
+  lotId: String
   quantity: Int!
-  thickness: Float!
+  thickness: Float
   unitPriceUzs: Float!
   volumeM3: Float!
-  width: Float!
+  width: Float
 }
 
 input SaleItemInput {
-  length: Float!
-  lotId: String!
+  finishedLotId: String
+  length: Float
+  lotId: String
   quantity: Int!
-  thickness: Float!
+  thickness: Float
   unitPriceUzs: Float!
-  width: Float!
+  width: Float
 }
 
 enum SaleType {
@@ -464,6 +472,7 @@ type StockTransfer {
   id: String!
   internalPriceUzs: Float!
   lotId: String!
+  quantity: Int
   toWorkspaceId: String!
   volumeM3: Float!
 }

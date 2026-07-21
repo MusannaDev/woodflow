@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { Fragment, FormEvent, useState } from 'react';
 import { INVENTORY_PAGE, RECORD_DEFECT } from '../../../lib/queries';
-import { parseDecimal } from '../../../lib/format';
+import { parseDecimal, parseQty } from '../../../lib/format';
 
 /**
  * Ombor (UI hujjati §7.3): yuqorida umumiy chiplar, pastda lotlar jadvali.
@@ -14,6 +14,7 @@ import { parseDecimal } from '../../../lib/format';
 interface Summary {
   totalRemainingM3: number;
   defectM3: number;
+  totalQuantity: number;
   lotCount: number;
 }
 interface LotRow {
@@ -23,6 +24,7 @@ interface LotRow {
   source: string | null;
   status: string;
   volumeM3Remaining: number;
+  quantityRemaining: number | null;
   unitCostUzsPerM3: number;
 }
 interface PageData {
@@ -54,6 +56,7 @@ export default function OmborPage() {
 
   const [defectLotId, setDefectLotId] = useState<string | null>(null);
   const [defectVol, setDefectVol] = useState('');
+  const [defectQty, setDefectQty] = useState('');
   const [defectReason, setDefectReason] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -74,6 +77,10 @@ export default function OmborPage() {
           input: {
             lotId: lot.id,
             volumeM3: vol,
+            quantity:
+              lot.quantityRemaining != null && parseQty(defectQty) > 0
+                ? parseQty(defectQty)
+                : null,
             reason: defectReason || null,
           },
         },
@@ -84,6 +91,7 @@ export default function OmborPage() {
       });
       setDefectLotId(null);
       setDefectVol('');
+      setDefectQty('');
       setDefectReason('');
       await refetch();
     } catch (err) {
@@ -106,9 +114,10 @@ export default function OmborPage() {
       <h1 className="text-xl font-bold">Ombor</h1>
 
       {/* ─── Umumiy chiplar ─── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           ['Jami qoldiq', `${fmt(s.totalRemainingM3)} m³`, ''],
+          ['Jami dona', s.totalQuantity > 0 ? fmt(s.totalQuantity, 0) : '—', ''],
           ['Nuqson', `${fmt(s.defectM3)} m³`, s.defectM3 > 0 ? 'text-red-600' : ''],
           ['Lotlar', String(s.lotCount), ''],
         ].map(([l, v, cls]) => (
@@ -147,6 +156,7 @@ export default function OmborPage() {
                 <th className="px-5 py-3 font-semibold">YOG&apos;OCH / MANBA</th>
                 <th className="px-5 py-3 font-semibold">NAVI</th>
                 <th className="px-5 py-3 font-semibold text-right">QOLDIQ</th>
+                <th className="px-5 py-3 font-semibold text-right">DONA</th>
                 <th className="px-5 py-3 font-semibold text-right">TANNARX / m³</th>
                 <th className="px-5 py-3 font-semibold text-right">HOLAT</th>
                 <th className="px-5 py-3 font-semibold text-right">AMAL</th>
@@ -178,6 +188,11 @@ export default function OmborPage() {
                         }`}
                       >
                         {fmt(lot.volumeM3Remaining)} m³
+                      </td>
+                      <td className="px-5 py-3.5 text-right tabular-nums text-neutral-600">
+                        {lot.quantityRemaining != null
+                          ? fmt(lot.quantityRemaining, 0)
+                          : '—'}
                       </td>
                       <td className="px-5 py-3.5 text-right tabular-nums text-neutral-600">
                         {fmt(lot.unitCostUzsPerM3, 0)}
@@ -229,6 +244,20 @@ export default function OmborPage() {
                                 autoFocus
                               />
                             </label>
+                            {lot.quantityRemaining != null && (
+                              <label className="grid gap-1.5">
+                                <span className="field-label text-xs">
+                                  Dona (maks {lot.quantityRemaining})
+                                </span>
+                                <input
+                                  value={defectQty}
+                                  onChange={(e) => setDefectQty(e.target.value)}
+                                  inputMode="numeric"
+                                  placeholder="10"
+                                  className="field-input !py-2 w-28"
+                                />
+                              </label>
+                            )}
                             <label className="grid gap-1.5 flex-1 min-w-48">
                               <span className="field-label text-xs">
                                 Sabab (ixtiyoriy)

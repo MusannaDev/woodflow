@@ -1,6 +1,7 @@
-import { Field, Float, InputType, ObjectType } from '@nestjs/graphql';
+import { Field, Float, InputType, Int, ObjectType } from '@nestjs/graphql';
 import {
   IsDate,
+  IsInt,
   IsNumber,
   IsOptional,
   IsPositive,
@@ -23,6 +24,9 @@ export class StockTransfer {
 
   @Field(() => Float)
   volumeM3!: number;
+
+  @Field(() => Int, { nullable: true })
+  quantity!: number | null; // dona (ixtiyoriy)
 
   @Field(() => Float)
   internalPriceUzs!: number; // JAMI ichki narx (so'm)
@@ -50,6 +54,13 @@ export class CreateTransferInput {
   @IsNumber()
   @IsPositive()
   volumeM3!: number;
+
+  /** Dona (ixtiyoriy) — manba lotdan ayirilib, qabul lotiga o'tadi. */
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  quantity?: number;
 
   /** JAMI ichki narx so'mda (1-biznesga daromad, 2-biznesga xarajat). */
   @Field(() => Float)

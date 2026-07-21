@@ -60,9 +60,59 @@ export class SalesService {
       const itemsData: Prisma.SaleItemCreateWithoutSaleInput[] = [];
 
       for (const item of input.items) {
+        // ── TAYYOR MAHSULOT (Taxta) — o'lchamsiz dona savdosi ──
+        if (item.finishedLotId) {
+          const fLot = await tx.finishedGoodsLot.findFirst({
+            where: { id: item.finishedLotId, workspaceId },
+            select: { id: true, quantityRemaining: true },
+          });
+          if (!fLot) {
+            throw new NotFoundException(
+              `Tayyor mahsulot topilmadi: ${item.finishedLotId}`,
+            );
+          }
+          if (item.quantity > fLot.quantityRemaining) {
+            throw new BadRequestException(
+              `Tayyor mahsulot yetarli emas: so‘ralgan ${item.quantity} dona, qoldiq ${fLot.quantityRemaining} dona.`,
+            );
+          }
+          const lineTotal = new Decimal(item.unitPriceUzs)
+            .mul(item.quantity)
+            .toDecimalPlaces(2);
+          totalPriceUzs = totalPriceUzs.plus(lineTotal);
+
+          await tx.finishedGoodsLot.update({
+            where: { id: fLot.id },
+            data: { quantityRemaining: { decrement: item.quantity } },
+          });
+
+          itemsData.push({
+            finishedLot: { connect: { id: fLot.id } },
+            quantity: item.quantity,
+            volumeM3: new Prisma.Decimal(0),
+            unitPriceUzs: new Prisma.Decimal(item.unitPriceUzs),
+            lineTotalUzs: new Prisma.Decimal(lineTotal.toString()),
+          });
+          continue;
+        }
+
+        // ── XOMASHYO LOT (Yog'och) — o'lchamli savdo ──
+        if (!item.lotId) {
+          throw new BadRequestException('lotId yoki finishedLotId kerak.');
+        }
+        if (
+          item.length == null ||
+          item.width == null ||
+          item.thickness == null
+        ) {
+          throw new BadRequestException(
+            'Xomashyo savdosida o‘lcham (uzunlik/en/qalinlik) majburiy.',
+          );
+        }
+
         const lot = await tx.inventoryLot.findFirst({
           where: { id: item.lotId, workspaceId },
-          select: { id: true, volumeM3Remaining: true },
+          select: { id: true, volumeM3Remaining: true, quantityRemaining: true },
         });
         if (!lot) {
           throw new NotFoundException(`Lot topilmadi: ${item.lotId}`);
@@ -78,6 +128,16 @@ export class SalesService {
           );
         }
 
+        // Dona hisobi yuritiladigan lotda dona yetarliligini tekshiramiz
+        if (
+          lot.quantityRemaining != null &&
+          item.quantity > lot.quantityRemaining
+        ) {
+          throw new BadRequestException(
+            `Omborda dona yetarli emas: so‘ralgan ${item.quantity} dona, qoldiq ${lot.quantityRemaining} dona (lot ${lot.id}).`,
+          );
+        }
+
         const lineTotal = saleLineTotal({
           perPiece,
           quantity: item.quantity,
@@ -89,7 +149,12 @@ export class SalesService {
         // Ombordan yechish
         await tx.inventoryLot.update({
           where: { id: lot.id },
-          data: { volumeM3Remaining: { decrement: new Prisma.Decimal(volumeM3.toString()) } },
+          data: {
+            volumeM3Remaining: { decrement: new Prisma.Decimal(volumeM3.toString()) },
+            ...(lot.quantityRemaining != null
+              ? { quantityRemaining: { decrement: item.quantity } }
+              : {}),
+          },
         });
 
         itemsData.push({
@@ -196,10 +261,11 @@ export class SalesService {
       items: row.items.map((i) => ({
         id: i.id,
         lotId: i.lotId,
+        finishedLotId: i.finishedLotId,
         quantity: i.quantity,
-        length: i.length.toNumber(),
-        width: i.width.toNumber(),
-        thickness: i.thickness.toNumber(),
+        length: i.length?.toNumber() ?? null,
+        width: i.width?.toNumber() ?? null,
+        thickness: i.thickness?.toNumber() ?? null,
         volumeM3: i.volumeM3.toNumber(),
         unitPriceUzs: i.unitPriceUzs.toNumber(),
         lineTotalUzs: i.lineTotalUzs.toNumber(),

@@ -17,6 +17,7 @@ type TransferRow = {
   toWorkspaceId: string;
   lotId: string;
   volumeM3: Prisma.Decimal;
+  quantity: number | null;
   internalPriceUzs: Prisma.Decimal;
   date: Date;
   createdAt: Date;
@@ -76,7 +77,7 @@ export class TransfersService {
       // 1) Manba lot — joriy workspace'niki, qoldiq yetarli
       const lot = await tx.inventoryLot.findFirst({
         where: { id: input.lotId, workspaceId: fromWorkspaceId },
-        select: { id: true, woodType: true, grade: true, volumeM3Remaining: true },
+        select: { id: true, woodType: true, grade: true, volumeM3Remaining: true, quantityRemaining: true },
       });
       if (!lot) {
         throw new NotFoundException('Manba lot topilmadi.');
@@ -86,11 +87,26 @@ export class TransfersService {
           `Omborda yetarli emas: so‘ralgan ${volume} m³, qoldiq ${lot.volumeM3Remaining} m³.`,
         );
       }
+      if (input.quantity != null) {
+        if (lot.quantityRemaining == null) {
+          throw new BadRequestException('Bu lotda dona hisobi yuritilmaydi.');
+        }
+        if (input.quantity > lot.quantityRemaining) {
+          throw new BadRequestException(
+            `Dona yetarli emas: so‘ralgan ${input.quantity}, qoldiq ${lot.quantityRemaining}.`,
+          );
+        }
+      }
 
       // 2) Manbadan yechish
       await tx.inventoryLot.update({
         where: { id: lot.id },
-        data: { volumeM3Remaining: { decrement: new Prisma.Decimal(volume.toString()) } },
+        data: {
+          volumeM3Remaining: { decrement: new Prisma.Decimal(volume.toString()) },
+          ...(input.quantity != null
+            ? { quantityRemaining: { decrement: input.quantity } }
+            : {}),
+        },
       });
 
       // 3) Qabul qiluvchida kirim + yangi lot (tannarx = ichki narx)
@@ -101,6 +117,7 @@ export class TransfersService {
           woodType: lot.woodType,
           grade: lot.grade,
           volumeM3: new Prisma.Decimal(volume.toString()),
+          quantity: input.quantity ?? null,
           unitPrice: new Prisma.Decimal(unitCost.toString()),
           currency: 'UZS',
           exchangeRate: new Prisma.Decimal(1),
@@ -112,6 +129,7 @@ export class TransfersService {
               woodType: lot.woodType,
               grade: lot.grade,
               volumeM3Remaining: new Prisma.Decimal(volume.toString()),
+              quantityRemaining: input.quantity ?? null,
               unitCostUzsPerM3: new Prisma.Decimal(unitCost.toString()),
               status: 'AVAILABLE',
             },
@@ -126,6 +144,7 @@ export class TransfersService {
           toWorkspaceId: input.toWorkspaceId,
           lotId: lot.id,
           volumeM3: new Prisma.Decimal(volume.toString()),
+          quantity: input.quantity ?? null,
           internalPriceUzs: new Prisma.Decimal(totalPrice.toFixed(2)),
           date,
         },
@@ -168,6 +187,7 @@ export class TransfersService {
       toWorkspaceId: row.toWorkspaceId,
       lotId: row.lotId,
       volumeM3: row.volumeM3.toNumber(),
+      quantity: row.quantity,
       internalPriceUzs: row.internalPriceUzs.toNumber(),
       date: row.date,
       createdAt: row.createdAt,

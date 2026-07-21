@@ -113,6 +113,13 @@ export const SALES_PAGE = gql`
       grade
       source
       volumeM3Remaining
+      quantityRemaining
+    }
+    finishedGoods {
+      id
+      productName
+      quantityRemaining
+      unitCostUzsPerPiece
     }
     sales {
       id
@@ -144,6 +151,7 @@ export const INVENTORY_PAGE = gql`
     inventorySummary {
       totalRemainingM3
       defectM3
+      totalQuantity
       lotCount
     }
     inventory {
@@ -153,6 +161,7 @@ export const INVENTORY_PAGE = gql`
       source
       status
       volumeM3Remaining
+      quantityRemaining
       unitCostUzsPerM3
     }
   }
@@ -367,6 +376,7 @@ export const TRANSFERS_PAGE = gql`
       toWorkspaceId
       lotId
       volumeM3
+      quantity
       internalPriceUzs
       date
     }
@@ -376,6 +386,7 @@ export const TRANSFERS_PAGE = gql`
       grade
       source
       volumeM3Remaining
+      quantityRemaining
     }
   }
 `;
@@ -444,6 +455,50 @@ export const CONSOLIDATED_REPORT = gql`
   }
 `;
 
+export const KIRIM_PAGE = gql`
+  query KirimPage {
+    purchases {
+      id
+      source
+      shipmentId
+      woodType
+      grade
+      volumeM3
+      quantity
+      unitPrice
+      currency
+      exchangeRate
+      totalCostUzs
+      date
+    }
+    shipments {
+      id
+      truckNumber
+      truckColor
+    }
+  }
+`;
+
+export const LATEST_RATE = gql`
+  query LatestRate {
+    latestExchangeRate {
+      rubToUzs
+      usdToUzs
+      date
+    }
+  }
+`;
+
+export const CREATE_PURCHASE = gql`
+  mutation CreatePurchase($input: CreatePurchaseInput!) {
+    createPurchase(input: $input) {
+      id
+      totalCostUzs
+      volumeM3
+    }
+  }
+`;
+
 export const DASHBOARD = gql`
   query Dashboard {
     sales {
@@ -460,6 +515,7 @@ export const DASHBOARD = gql`
       grade
       source
       volumeM3Remaining
+      quantityRemaining
       unitCostUzsPerM3
     }
     customers {

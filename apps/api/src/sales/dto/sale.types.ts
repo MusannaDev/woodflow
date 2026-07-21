@@ -30,23 +30,26 @@ export class SaleItem {
   @Field()
   id!: string;
 
-  @Field()
-  lotId!: string;
+  @Field(() => String, { nullable: true })
+  lotId!: string | null; // xomashyo lot (Yog'och)
+
+  @Field(() => String, { nullable: true })
+  finishedLotId!: string | null; // tayyor mahsulot lot (Taxta)
 
   @Field(() => Int)
   quantity!: number;
 
-  @Field(() => Float)
-  length!: number;
+  @Field(() => Float, { nullable: true })
+  length!: number | null;
+
+  @Field(() => Float, { nullable: true })
+  width!: number | null;
+
+  @Field(() => Float, { nullable: true })
+  thickness!: number | null;
 
   @Field(() => Float)
-  width!: number;
-
-  @Field(() => Float)
-  thickness!: number;
-
-  @Field(() => Float)
-  volumeM3!: number; // avto: L×W×T×qty
+  volumeM3!: number; // avto: L×W×T×qty (tayyor mahsulotda 0)
 
   @Field(() => Float)
   unitPriceUzs!: number;
@@ -113,32 +116,43 @@ export class Sale {
 
 @InputType()
 export class SaleItemInput {
-  @Field()
+  /** Xomashyo lot (Yog'och) — o'lchamli savdo. finishedLotId bilan birga emas. */
+  @Field({ nullable: true })
+  @IsOptional()
   @IsString()
-  lotId!: string;
+  lotId?: string;
+
+  /** Tayyor mahsulot lot (Taxta) — o'lchamsiz dona savdosi. */
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  finishedLotId?: string;
 
   @Field(() => Int)
   @IsInt()
   @IsPositive()
   quantity!: number;
 
-  /** O'lcham metrda: 6.0 × 0.2 × 0.05 */
-  @Field(() => Float)
+  /** O'lcham metrda (xomashyo savdosida): 6.0 × 0.2 × 0.05. Tayyorda kerakmas. */
+  @Field(() => Float, { nullable: true })
+  @IsOptional()
   @IsNumber()
   @IsPositive()
-  length!: number;
+  length?: number;
 
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
+  @IsOptional()
   @IsNumber()
   @IsPositive()
-  width!: number;
+  width?: number;
 
-  @Field(() => Float)
+  @Field(() => Float, { nullable: true })
+  @IsOptional()
   @IsNumber()
   @IsPositive()
-  thickness!: number;
+  thickness?: number;
 
-  /** PER_PIECE'da — dona narxi; PER_CUBE/WHOLESALE'da — m³ narxi (so'm). */
+  /** PER_PIECE/tayyor — dona narxi; PER_CUBE/WHOLESALE — m³ narxi (so'm). */
   @Field(() => Float)
   @IsNumber()
   @IsPositive()

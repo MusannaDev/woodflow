@@ -17,6 +17,7 @@ interface LotRow {
   grade: string;
   source: string;
   volumeM3Remaining: number;
+  quantityRemaining: number | null;
   unitCostUzsPerM3: number;
 }
 interface CustomerRow {
@@ -171,7 +172,7 @@ export default function DashboardPage() {
                           : ''
                     }`}
                   >
-                    {fmt(l.volumeM3Remaining)} m³
+                    {fmt(l.volumeM3Remaining)} m³{l.quantityRemaining != null ? ` · ${fmt(l.quantityRemaining)} dona` : ''}
                   </span>
                 </li>
               ))}

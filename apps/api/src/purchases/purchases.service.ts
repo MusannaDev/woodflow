@@ -16,6 +16,7 @@ type PurchaseRow = {
   woodType: string;
   grade: string;
   volumeM3: Prisma.Decimal;
+  quantity: number | null;
   unitPrice: Prisma.Decimal;
   currency: Currency;
   exchangeRate: Prisma.Decimal;
@@ -65,6 +66,7 @@ export class PurchasesService {
         woodType: input.woodType,
         grade: input.grade,
         volumeM3: new Prisma.Decimal(input.volumeM3),
+        quantity: input.quantity ?? null,
         unitPrice: new Prisma.Decimal(input.unitPrice),
         currency: input.currency,
         exchangeRate: new Prisma.Decimal(exchangeRate),
@@ -77,6 +79,7 @@ export class PurchasesService {
             woodType: input.woodType,
             grade: input.grade,
             volumeM3Remaining: new Prisma.Decimal(input.volumeM3),
+            quantityRemaining: input.quantity ?? null,
             unitCostUzsPerM3: new Prisma.Decimal(unitCost.toFixed(2)),
             status: 'AVAILABLE',
           },
@@ -131,6 +134,7 @@ export class PurchasesService {
       woodType: row.woodType,
       grade: row.grade,
       volumeM3: row.volumeM3.toNumber(),
+      quantity: row.quantity,
       unitPrice: row.unitPrice.toNumber(),
       currency: row.currency,
       exchangeRate: row.exchangeRate.toNumber(),

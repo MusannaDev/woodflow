@@ -13,6 +13,7 @@ type LotRow = {
   woodType: string;
   grade: string;
   volumeM3Remaining: Prisma.Decimal;
+  quantityRemaining: number | null;
   unitCostUzsPerM3: Prisma.Decimal;
   status: LotStatus;
   createdAt: Date;
@@ -33,7 +34,7 @@ export class InventoryService {
   }
 
   async summary(workspaceId: string): Promise<InventorySummary> {
-    const [remaining, defect, lotCount] = await Promise.all([
+    const [remaining, defect, lotCount, qty] = await Promise.all([
       this.prisma.client.inventoryLot.aggregate({
         where: { workspaceId },
         _sum: { volumeM3Remaining: true },
@@ -44,11 +45,16 @@ export class InventoryService {
         _sum: { volumeM3: true },
       }),
       this.prisma.client.inventoryLot.count({ where: { workspaceId } }),
+      this.prisma.client.inventoryLot.aggregate({
+        where: { workspaceId },
+        _sum: { quantityRemaining: true },
+      }),
     ]);
 
     return {
       totalRemainingM3: (remaining._sum.volumeM3Remaining ?? new Prisma.Decimal(0)).toNumber(),
       defectM3: (defect._sum.volumeM3 ?? new Prisma.Decimal(0)).toNumber(),
+      totalQuantity: qty._sum.quantityRemaining ?? 0,
       lotCount,
     };
   }
@@ -63,7 +69,7 @@ export class InventoryService {
   ): Promise<DefectRecord> {
     const lot = await this.prisma.client.inventoryLot.findFirst({
       where: { id: input.lotId, workspaceId },
-      select: { id: true, volumeM3Remaining: true },
+      select: { id: true, volumeM3Remaining: true, quantityRemaining: true },
     });
     if (!lot) {
       throw new NotFoundException('Lot topilmadi.');
@@ -76,14 +82,36 @@ export class InventoryService {
       );
     }
 
+    if (input.quantity != null) {
+      if (lot.quantityRemaining == null) {
+        throw new BadRequestException('Bu lotda dona hisobi yuritilmaydi.');
+      }
+      if (input.quantity > lot.quantityRemaining) {
+        throw new BadRequestException(
+          `Nuqson dona (${input.quantity}) qoldiq donadan (${lot.quantityRemaining}) oshib ketdi.`,
+        );
+      }
+    }
+
     const date = input.date ?? new Date();
     const [defect] = await this.prisma.raw.$transaction([
       this.prisma.raw.defectRecord.create({
-        data: { lotId: lot.id, volumeM3: defectVol, reason: input.reason, date },
+        data: {
+          lotId: lot.id,
+          volumeM3: defectVol,
+          quantity: input.quantity ?? null,
+          reason: input.reason,
+          date,
+        },
       }),
       this.prisma.raw.inventoryLot.update({
         where: { id: lot.id },
-        data: { volumeM3Remaining: { decrement: defectVol } },
+        data: {
+          volumeM3Remaining: { decrement: defectVol },
+          ...(input.quantity != null
+            ? { quantityRemaining: { decrement: input.quantity } }
+            : {}),
+        },
       }),
     ]);
 
@@ -102,6 +130,7 @@ export class InventoryService {
       woodType: row.woodType,
       grade: row.grade,
       volumeM3Remaining: row.volumeM3Remaining.toNumber(),
+      quantityRemaining: row.quantityRemaining,
       unitCostUzsPerM3: row.unitCostUzsPerM3.toNumber(),
       status: row.status,
       source: row.purchase?.source ?? null,

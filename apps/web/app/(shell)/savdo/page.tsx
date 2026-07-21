@@ -2,7 +2,12 @@
 
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useMemo, useState } from 'react';
-import { ADD_PAYMENT, CREATE_SALE, SALES_PAGE } from '../../../lib/queries';
+import {
+  ADD_PAYMENT,
+  CREATE_CUSTOMER,
+  CREATE_SALE,
+  SALES_PAGE,
+} from '../../../lib/queries';
 import {
   formatMoneyInput,
   parseDecimal,
@@ -72,12 +77,16 @@ export default function SavdoPage() {
   const { data, loading, error, refetch } = useQuery<PageData>(SALES_PAGE);
   const [createSale, { loading: saving }] = useMutation(CREATE_SALE);
   const [addPayment] = useMutation(ADD_PAYMENT);
+  const [createCustomer] = useMutation(CREATE_CUSTOMER);
 
   // Taxta workspace — tayyor ombordan sotadi
   const isLumber =
     session.currentWorkspace()?.type === 'LUMBER_PRODUCTION';
 
   const [customerId, setCustomerId] = useState('');
+  // "+ Yangi mijoz" rejimi — savdo saqlanganda avto-yaratiladi
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustPhone, setNewCustPhone] = useState('+998');
   const [saleType, setSaleType] =
     useState<(typeof SALE_TYPES)[number]['value']>('PER_PIECE');
   const [lotId, setLotId] = useState('');
@@ -146,6 +155,7 @@ export default function SavdoPage() {
     qty > 0 &&
     price > 0 &&
     (isLumber || totalVol > 0) &&
+    (customerId !== '__new' || newCustName.trim().length >= 2) &&
     !exceeds &&
     !exceedsPieces &&
     !overPaid &&
@@ -156,10 +166,26 @@ export default function SavdoPage() {
     e.preventDefault();
     setMsg(null);
     try {
+      // "+ Yangi mijoz" tanlangan bo'lsa — avval mijozni yaratamiz
+      let finalCustomerId: string | null = customerId || null;
+      let newCustomerNote = '';
+      if (customerId === '__new') {
+        const custRes = await createCustomer({
+          variables: {
+            input: {
+              name: newCustName.trim(),
+              phone: newCustPhone.trim() && newCustPhone !== '+998' ? newCustPhone.trim() : null,
+            },
+          },
+        });
+        finalCustomerId = custRes.data.createCustomer.id as string;
+        newCustomerNote = ` Yangi mijoz "${newCustName.trim()}" qo'shildi.`;
+      }
+
       const res = await createSale({
         variables: {
           input: {
-            customerId: customerId || null,
+            customerId: finalCustomerId,
             saleType: isLumber ? 'PER_PIECE' : saleType,
             date: new Date().toISOString(),
             items: [
@@ -214,11 +240,16 @@ export default function SavdoPage() {
             : " To'liq to'landi.";
       setMsg({
         ok: true,
-        text: `Savdo saqlandi — ${fmt(totalSum)} so'm.${debtText}`,
+        text: `Savdo saqlandi — ${fmt(totalSum)} so'm.${debtText}${newCustomerNote}`,
       });
       setQuantity('');
       setUnitPrice('');
       setUsdAmount('');
+      if (customerId === '__new') {
+        setCustomerId('');
+        setNewCustName('');
+        setNewCustPhone('+998');
+      }
       await refetch();
     } catch (err) {
       setMsg({
@@ -255,6 +286,7 @@ export default function SavdoPage() {
                     {c.name}
                   </option>
                 ))}
+                <option value="__new">➕ Yangi mijoz qo&apos;shish…</option>
               </select>
             </label>
 
@@ -277,6 +309,35 @@ export default function SavdoPage() {
               </label>
             )}
           </div>
+
+          {/* ➕ Yangi mijoz mini-formasi */}
+          {customerId === '__new' && (
+            <div className="grid sm:grid-cols-2 gap-3 rounded-xl border-2 border-brand/30 bg-brand-faint/60 p-4 animate-[fadeIn_.3s_ease]">
+              <label className="grid gap-1.5">
+                <span className="field-label text-xs">Mijoz ismi</span>
+                <input
+                  value={newCustName}
+                  onChange={(e) => setNewCustName(e.target.value)}
+                  placeholder="Alisher Karimov"
+                  className="field-input !py-2.5"
+                  autoFocus
+                />
+              </label>
+              <label className="grid gap-1.5">
+                <span className="field-label text-xs">Telefon (ixtiyoriy)</span>
+                <input
+                  value={newCustPhone}
+                  onChange={(e) => setNewCustPhone(e.target.value)}
+                  inputMode="tel"
+                  className="field-input !py-2.5"
+                />
+              </label>
+              <p className="sm:col-span-2 text-[11px] text-neutral-500">
+                Savdo saqlanganда mijoz avtomatik yaratiladi va «Mijozlar»
+                sahifasida ko&apos;rinadi.
+              </p>
+            </div>
+          )}
 
           <label className="grid gap-1.5">
             <span className="field-label">

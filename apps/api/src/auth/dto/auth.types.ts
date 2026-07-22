@@ -41,6 +41,14 @@ export class RegisterInput {
   @IsOptional()
   @IsString()
   businessName?: string;
+
+  /** OWNER uchun — qaysi makon(lar): WOOD_ONLY | LUMBER_ONLY | BOTH. */
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsIn(['WOOD_ONLY', 'LUMBER_ONLY', 'BOTH'], {
+    message: 'businessKind WOOD_ONLY, LUMBER_ONLY yoki BOTH bo‘lsin.',
+  })
+  businessKind?: 'WOOD_ONLY' | 'LUMBER_ONLY' | 'BOTH';
 }
 
 @ObjectType()
@@ -71,6 +79,18 @@ export class BusinessBrief {
 
   @Field()
   status!: string; // PENDING | ACTIVE | REJECTED
+
+  /** Platforma obunasi tugagan va tekin ruxsat yo'q — faqat /tolov ochiq. */
+  @Field()
+  blocked!: boolean;
+
+  /** Obuna qachongacha ochiq (null = hali to'lanmagan). */
+  @Field(() => Date, { nullable: true })
+  paidUntil!: Date | null;
+
+  /** CEO tekin ruxsat berganmi. */
+  @Field()
+  freeAccess!: boolean;
 }
 
 @ObjectType()

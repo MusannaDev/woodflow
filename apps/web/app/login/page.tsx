@@ -30,8 +30,12 @@ export default function LoginPage() {
     if (!data) return;
 
     session.save(data);
-    if (data.pending) {
+    if (data.platformRole === 'CEO') {
+      router.replace('/ceo');
+    } else if (data.pending) {
       router.replace('/kutish');
+    } else if (data.business?.blocked) {
+      router.replace('/obuna');
     } else if (data.workspaces.length > 1) {
       setPickList(data.workspaces);
     } else {

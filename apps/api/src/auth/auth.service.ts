@@ -61,6 +61,7 @@ export class AuthService {
             name: input.businessName!.trim(),
             ownerId: u.id,
             status: 'PENDING',
+            kind: input.businessKind ?? 'BOTH',
           },
         });
         await tx.joinRequest.create({
@@ -106,6 +107,19 @@ export class AuthService {
 
     const token = await this.jwt.signAsync({ sub: user.id, phone: user.phone });
 
+    // CEO — sof admin: biznes/makon ko'rinmaydi, faqat CEO panelni boshqaradi.
+    if (user.platformRole === 'CEO') {
+      return {
+        token,
+        userId: user.id,
+        name: user.name,
+        platformRole: 'CEO',
+        workspaces: [],
+        business: null,
+        pending: null,
+      };
+    }
+
     // Biznes: egalik qilgani, bo'lmasa a'zoligi orqali
     const owned = user.ownedBusinesses[0] ?? null;
     const viaMembership =
@@ -114,13 +128,20 @@ export class AuthService {
 
     // Kutish holati
     let pending: string | null = null;
-    if (user.memberships.length === 0 && user.platformRole !== 'CEO') {
+    if (user.memberships.length === 0) {
       const req = user.joinRequests[0];
       if (owned && owned.status === 'PENDING') pending = 'CEO_APPROVAL';
       else if (owned && owned.status === 'REJECTED') pending = 'REJECTED';
       else if (req?.type === 'WORKER_JOIN') pending = 'OWNER_APPROVAL';
       else if (!owned) pending = 'WAITING_EMPLOYEE';
     }
+
+    // Platforma obunasi bloklanganmi (faqat ACTIVE biznes uchun)
+    const blocked =
+      !!business &&
+      business.status === 'ACTIVE' &&
+      !business.freeAccess &&
+      (!business.paidUntil || business.paidUntil.getTime() < Date.now());
 
     return {
       token,
@@ -139,6 +160,9 @@ export class AuthService {
             name: business.name,
             logoUrl: business.logoUrl,
             status: business.status,
+            blocked,
+            paidUntil: business.paidUntil,
+            freeAccess: business.freeAccess,
           }
         : null,
       pending,

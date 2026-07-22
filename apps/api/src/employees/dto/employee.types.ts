@@ -56,6 +56,9 @@ export class SalaryPayment {
   @Field()
   employeeId!: string;
 
+  @Field(() => String, { nullable: true })
+  employeeName!: string | null;
+
   @Field(() => Float)
   amountUzs!: number;
 
@@ -64,6 +67,12 @@ export class SalaryPayment {
 
   @Field()
   date!: Date;
+
+  @Field()
+  status!: string; // PENDING | CONFIRMED
+
+  @Field(() => Date, { nullable: true })
+  confirmedAt!: Date | null;
 }
 
 @InputType()

@@ -17,6 +17,9 @@ const AUTH_FIELDS = `
     name
     logoUrl
     status
+    blocked
+    paidUntil
+    freeAccess
   }
 `;
 
@@ -55,6 +58,130 @@ export const DECIDE_OWNER_REQUEST = gql`
     decideOwnerRequest(input: $input) {
       id
       status
+    }
+  }
+`;
+
+export const PLATFORM_STATS = gql`
+  query PlatformStats {
+    platformStats {
+      ownerCount
+      pendingCount
+      userCount
+      workerCount
+    }
+  }
+`;
+
+export const OWNERS = gql`
+  query Owners {
+    owners {
+      userId
+      name
+      phone
+      businessId
+      businessName
+      status
+      kind
+      freeAccess
+      blocked
+      paidUntil
+      logoUrl
+      workspaceCount
+      createdAt
+    }
+  }
+`;
+
+export const CREATE_OWNER = gql`
+  mutation CreateOwner($input: CreateOwnerInput!) {
+    createOwner(input: $input) {
+      userId
+      businessName
+      status
+    }
+  }
+`;
+
+export const UPDATE_OWNER = gql`
+  mutation UpdateOwner($input: UpdateOwnerInput!) {
+    updateOwner(input: $input) {
+      userId
+      name
+      phone
+      businessName
+    }
+  }
+`;
+
+export const DELETE_OWNER = gql`
+  mutation DeleteOwner($businessId: String!) {
+    deleteOwner(businessId: $businessId)
+  }
+`;
+
+export const ALL_USERS = gql`
+  query AllUsers {
+    allUsers {
+      id
+      name
+      phone
+      platformRole
+      roleLabel
+      businessName
+      createdAt
+    }
+  }
+`;
+
+export const OWNER_DETAIL = gql`
+  query OwnerDetail($businessId: String!) {
+    ownerDetail(businessId: $businessId) {
+      userId
+      name
+      phone
+      businessId
+      businessName
+      status
+      kind
+      freeAccess
+      blocked
+      paidUntil
+      logoUrl
+      employeeCount
+      createdAt
+      workspaces {
+        id
+        name
+        type
+      }
+      payments {
+        id
+        amountUzs
+        months
+        note
+        status
+        createdAt
+      }
+    }
+  }
+`;
+
+export const USER_DETAIL = gql`
+  query UserDetail($userId: String!) {
+    userDetail(userId: $userId) {
+      id
+      name
+      phone
+      platformRole
+      roleLabel
+      ownedBusinessName
+      createdAt
+      memberships {
+        workspaceName
+        businessName
+        role
+      }
     }
   }
 `;
@@ -431,6 +558,99 @@ export const PAY_SALARY = gql`
       id
       amountUzs
       period
+      status
+    }
+  }
+`;
+
+const SALARY_FIELDS = `
+  id
+  employeeName
+  amountUzs
+  period
+  date
+  status
+  confirmedAt
+`;
+
+export const SALARY_HISTORY = gql`
+  query SalaryHistory {
+    salaryHistory { ${SALARY_FIELDS} }
+  }
+`;
+
+export const MY_SALARIES = gql`
+  query MySalaries {
+    mySalaries { ${SALARY_FIELDS} }
+  }
+`;
+
+export const CONFIRM_SALARY = gql`
+  mutation ConfirmSalary($paymentId: String!) {
+    confirmSalary(paymentId: $paymentId) {
+      id
+      status
+      confirmedAt
+    }
+  }
+`;
+
+// ── Platforma to'lovi (obuna) ──
+
+const PAYMENT_FIELDS = `
+  id
+  businessName
+  ownerName
+  amountUzs
+  months
+  note
+  receiptUrl
+  status
+  createdAt
+`;
+
+export const MY_BILLING = gql`
+  query MyBilling {
+    myBilling {
+      status
+      blocked
+      freeAccess
+      paidUntil
+      payments { ${PAYMENT_FIELDS} }
+    }
+  }
+`;
+
+export const SUBMIT_PAYMENT = gql`
+  mutation SubmitPlatformPayment($input: SubmitPaymentInput!) {
+    submitPlatformPayment(input: $input) {
+      id
+      status
+    }
+  }
+`;
+
+export const PENDING_PLATFORM_PAYMENTS = gql`
+  query PendingPlatformPayments {
+    pendingPlatformPayments { ${PAYMENT_FIELDS} }
+  }
+`;
+
+export const DECIDE_PLATFORM_PAYMENT = gql`
+  mutation DecidePlatformPayment($input: DecidePaymentInput!) {
+    decidePlatformPayment(input: $input) {
+      id
+      status
+    }
+  }
+`;
+
+export const GRANT_FREE_ACCESS = gql`
+  mutation GrantFreeAccess($input: GrantAccessInput!) {
+    grantFreeAccess(input: $input) {
+      businessId
+      freeAccess
+      blocked
     }
   }
 `;

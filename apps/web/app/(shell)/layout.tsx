@@ -1,7 +1,12 @@
 'use client';
 
+import { useQuery } from '@apollo/client';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
+import {
+  PENDING_PLATFORM_PAYMENTS,
+  PLATFORM_STATS,
+} from '../../lib/queries';
 import {
   API_BASE,
   BusinessBrief,
@@ -23,6 +28,7 @@ const SHARED_TAIL: MenuItem[] = [
   { href: '/mijozlar', label: 'Mijozlar', icon: '◎' },
   { href: '/xarajatlar', label: 'Xarajatlar', icon: '◈' },
   { href: '/ishchilar', label: 'Ishchilar', icon: '♟' },
+  { href: '/oylik', label: 'Oylik', icon: '💵' },
   { href: '/konsolidatsiya', label: 'Konsolidatsiya', icon: '◆' },
 ];
 
@@ -73,6 +79,7 @@ const WORKER_ALLOWED = new Set([
   '/savdo',
   '/transfer',
   '/mijozlar',
+  '/oylik',
 ]);
 
 export default function ShellLayout({ children }: { children: ReactNode }) {
@@ -92,6 +99,10 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
       router.replace('/login');
       return;
     }
+    const role = session.platformRole();
+    setPlatformRole(role);
+    // CEO — sof admin: makon kerak emas, alohida CEO shell ko'rsatiladi
+    if (role === 'CEO') return;
     if (session.pending()) {
       router.replace('/kutish'); // tasdiq kutilmoqda — ichkariga kirmaydi
       return;
@@ -105,8 +116,14 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
     setWs(current);
     setList(session.workspaces());
     setBiz(session.business());
-    setPlatformRole(session.platformRole());
   }, [router]);
+
+  // Obuna bloklangan bo'lsa — faqat /obuna sahifasi ochiq
+  useEffect(() => {
+    if (biz?.blocked && pathname !== '/obuna') {
+      router.replace('/obuna');
+    }
+  }, [biz, pathname, router]);
 
   // Ishchi ruxsatsiz sahifaga URL orqali kirsa — dashboard'ga qaytariladi
   useEffect(() => {
@@ -114,6 +131,15 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
       router.replace('/dashboard');
     }
   }, [ws, pathname, router]);
+
+  // Bitta makonli biznesda /transfer sahifasi ochilmaydi (ichki transfer yo'q)
+  useEffect(() => {
+    if (list.length === 0 || pathname !== '/transfer') return;
+    const types = new Set(list.map((w) => w.type));
+    if (!(types.has('WOOD_TRADING') && types.has('LUMBER_PRODUCTION'))) {
+      router.replace('/dashboard');
+    }
+  }, [list, pathname, router]);
 
   function switchWs(target: WorkspaceBrief) {
     session.setCurrentWorkspace(target.id);
@@ -125,24 +151,46 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
     router.replace('/login');
   }
 
+  // CEO — sof admin shell (makon/biznes yo'q, faqat CEO panel)
+  if (platformRole === 'CEO') {
+    return (
+      <CeoShell name={session.userName()} onLogout={logout}>
+        {children}
+      </CeoShell>
+    );
+  }
+
   if (!ws) return null;
 
   const menu = ws.type === 'LUMBER_PRODUCTION' ? MENU_LUMBER : MENU_WOOD;
   const isOwner = ws.role === 'OWNER';
   const isWorker = ws.role === 'WORKER';
 
-  // Ishchi — faqat ruxsat etilgan sahifalar; boshqalar to'liq menyu
-  const visibleMenu = isWorker
-    ? menu.filter((m) => WORKER_ALLOWED.has(m.href))
-    : [
-        ...menu.filter((m) => m.href !== '/konsolidatsiya' || isOwner),
-        ...(isOwner
-          ? [{ href: '/sozlamalar', label: 'Sozlamalar', icon: '⚙' }]
-          : []),
-        ...(platformRole === 'CEO'
-          ? [{ href: '/ceo', label: 'CEO panel', icon: '⭑' }]
-          : []),
-      ];
+  // Biznesda ikkala makon (Yog'och + Taxta) bormi — ichki transfer shartli
+  const wsTypes = new Set(list.map((w) => w.type));
+  const hasBoth =
+    wsTypes.has('WOOD_TRADING') && wsTypes.has('LUMBER_PRODUCTION');
+
+  // Ishchi — faqat ruxsat etilgan sahifalar; boshqalar to'liq menyu.
+  // Bitta makonli biznesda "Ichki transfer" ko'rinmaydi.
+  const fullMenu = (
+    isWorker
+      ? menu.filter((m) => WORKER_ALLOWED.has(m.href))
+      : [
+          ...menu.filter((m) => m.href !== '/konsolidatsiya' || isOwner),
+          ...(isOwner
+            ? [
+                { href: '/obuna', label: 'Obuna', icon: '💳' },
+                { href: '/sozlamalar', label: 'Sozlamalar', icon: '⚙' },
+              ]
+            : []),
+        ]
+  ).filter((m) => m.href !== '/transfer' || hasBoth);
+
+  // Obuna bloklangan bo'lsa — faqat Obuna sahifasi ko'rinadi
+  const visibleMenu = biz?.blocked
+    ? [{ href: '/obuna', label: 'Obuna', icon: '💳' }]
+    : fullMenu;
 
   const tabs = isWorker
     ? TABS_WORKER
@@ -427,6 +475,159 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const CEO_NAV: { href: string; label: string; icon: string; badge?: 'req' | 'pay' }[] =
+  [
+    { href: '/ceo', label: 'Umumiy', icon: '▦' },
+    { href: '/ceo/sorovlar', label: "So'rovlar", icon: '🔔', badge: 'req' },
+    { href: '/ceo/tolovlar', label: "To'lovlar", icon: '💳', badge: 'pay' },
+    { href: '/ceo/ownerlar', label: 'Ownerlar', icon: '👑' },
+    { href: '/ceo/foydalanuvchilar', label: 'Foydalanuvchilar', icon: '👥' },
+  ];
+
+const ceoActive = (href: string, pathname: string) =>
+  href === '/ceo' ? pathname === '/ceo' : pathname.startsWith(href);
+
+/** CEO shell — glass sidebar, makon/biznes yo'q, faqat platformani boshqaradi. */
+function CeoShell({
+  name,
+  onLogout,
+  children,
+}: {
+  name: string;
+  onLogout: () => void;
+  children: ReactNode;
+}) {
+  const pathname = usePathname();
+  const stats = useQuery<{ platformStats: { pendingCount: number } }>(
+    PLATFORM_STATS,
+  );
+  const pays = useQuery<{ pendingPlatformPayments: unknown[] }>(
+    PENDING_PLATFORM_PAYMENTS,
+  );
+  const counts = {
+    req: stats.data?.platformStats.pendingCount ?? 0,
+    pay: pays.data?.pendingPlatformPayments.length ?? 0,
+  };
+
+  const Badge = ({ n }: { n: number }) =>
+    n > 0 ? (
+      <span className="ml-auto text-[11px] font-bold bg-amber-400 text-[#1c130a] rounded-full px-1.5 py-0.5 leading-none">
+        {n}
+      </span>
+    ) : null;
+
+  return (
+    <div className="min-h-screen flex">
+      <div
+        aria-hidden
+        className="fixed inset-0 -z-10"
+        style={{
+          background:
+            'radial-gradient(1100px 550px at 85% -10%, rgb(var(--brand) / 0.13), transparent 60%),' +
+            'radial-gradient(800px 450px at -10% 105%, rgb(var(--brand) / 0.10), transparent 55%)',
+        }}
+      />
+
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-64 flex-none flex-col glass-dark text-neutral-300 m-3 rounded-3xl sticky top-3 h-[calc(100vh-1.5rem)] overflow-y-auto">
+        <a
+          href="/ceo"
+          className="px-5 pt-5 pb-4 flex items-center gap-2.5 text-white font-bold hover:opacity-80 transition-opacity"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/rs-mark.png"
+            alt="RS Development"
+            className="w-8 h-8 rounded-full object-cover object-center ring-1 ring-amber-300/20 flex-none"
+          />
+          <span className="truncate">RS Development</span>
+          <span className="text-[10px] font-semibold bg-amber-400/20 text-amber-300 rounded-full px-1.5 py-0.5">
+            CEO
+          </span>
+        </a>
+
+        <nav className="flex-1 px-3 space-y-0.5 mt-1">
+          {CEO_NAV.map((m) => (
+            <a
+              key={m.href}
+              href={m.href}
+              className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm transition-all ${
+                ceoActive(m.href, pathname)
+                  ? 'bg-brand text-white shadow-lg shadow-brand/30'
+                  : 'hover:bg-white/[0.08] text-white/75 hover:text-white'
+              }`}
+            >
+              <span className="opacity-80 w-4 text-center">{m.icon}</span>
+              {m.label}
+              {m.badge && <Badge n={counts[m.badge]} />}
+            </a>
+          ))}
+        </nav>
+
+        <div className="px-5 py-4 mt-2 border-t border-white/10 text-sm">
+          <div className="text-white truncate">{name}</div>
+          <div className="text-xs text-white/40">Platforma egasi</div>
+          <button
+            onClick={onLogout}
+            className="mt-2 text-xs text-white/50 hover:text-white transition-colors"
+          >
+            Chiqish →
+          </button>
+        </div>
+      </aside>
+
+      {/* Asosiy ustun */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobil header + gorizontal nav */}
+        <header className="md:hidden glass sticky top-0 z-40 px-4 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex items-center gap-2 font-bold min-w-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/rs-mark.png"
+                alt="RS"
+                className="w-7 h-7 rounded-full object-cover object-center flex-none"
+              />
+              <span className="truncate text-sm">RS · CEO</span>
+            </span>
+            <button
+              onClick={onLogout}
+              className="ml-auto text-[11px] font-semibold text-neutral-500 hover:text-red-600 border border-neutral-200 rounded-lg px-2 py-1.5 flex-none"
+            >
+              Chiqish
+            </button>
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto mt-2 -mx-1 px-1">
+            {CEO_NAV.map((m) => (
+              <a
+                key={m.href}
+                href={m.href}
+                className={`flex-none flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  ceoActive(m.href, pathname)
+                    ? 'bg-[#1c130a] text-white'
+                    : 'text-neutral-500 bg-white/60'
+                }`}
+              >
+                <span>{m.icon}</span>
+                {m.label}
+                {m.badge && counts[m.badge] > 0 && (
+                  <span className="text-[11px] font-bold bg-amber-100 text-amber-700 rounded-full px-1.5 leading-none">
+                    {counts[m.badge]}
+                  </span>
+                )}
+              </a>
+            ))}
+          </div>
+        </header>
+
+        <main className="p-4 sm:p-6 animate-[fadeIn_.35s_ease] max-w-5xl w-full mx-auto">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

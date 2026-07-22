@@ -21,9 +21,12 @@ type AuthPayload {
 }
 
 type BusinessBrief {
+  blocked: Boolean!
+  freeAccess: Boolean!
   id: String!
   logoUrl: String
   name: String!
+  paidUntil: DateTime
   status: String!
 }
 
@@ -62,6 +65,14 @@ input CreateExpenseInput {
   description: String
   employeeId: String
   isShared: Boolean = false
+}
+
+input CreateOwnerInput {
+  businessName: String!
+  kind: String
+  name: String!
+  password: String!
+  phone: String!
 }
 
 input CreateProductTemplateInput {
@@ -145,6 +156,11 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+input DecidePaymentInput {
+  approve: Boolean!
+  paymentId: String!
+}
+
 input DecideRequestInput {
   approve: Boolean!
   requestId: String!
@@ -209,6 +225,11 @@ type FinishedGoodsLot {
   unitCostUzsPerPiece: Float!
 }
 
+input GrantAccessInput {
+  businessId: String!
+  freeAccess: Boolean!
+}
+
 type InventoryLot {
   createdAt: DateTime!
   grade: String!
@@ -252,11 +273,19 @@ enum LotStatus {
   SOLD_OUT
 }
 
+type MembershipInfo {
+  businessName: String
+  role: String!
+  workspaceName: String!
+}
+
 type Mutation {
   addPayment(input: AddPaymentInput!): Payment!
+  confirmSalary(paymentId: String!): SalaryPayment!
   createCustomer(input: CreateCustomerInput!): Customer!
   createEmployee(input: CreateEmployeeInput!): Employee!
   createExpense(input: CreateExpenseInput!): Expense!
+  createOwner(input: CreateOwnerInput!): OwnerView!
   createProductTemplate(input: CreateProductTemplateInput!): ProductTemplate!
   createProductionBatch(input: CreateProductionBatchInput!): ProductionBatch!
   createPurchase(input: CreatePurchaseInput!): Purchase!
@@ -265,13 +294,60 @@ type Mutation {
   createSupplier(input: CreateSupplierInput!): Supplier!
   createTransfer(input: CreateTransferInput!): StockTransfer!
   decideOwnerRequest(input: DecideRequestInput!): JoinRequestView!
+  decidePlatformPayment(input: DecidePaymentInput!): PlatformPaymentView!
   decideWorkerRequest(input: DecideRequestInput!): JoinRequestView!
+  deleteOwner(businessId: String!): Boolean!
+  grantFreeAccess(input: GrantAccessInput!): OwnerView!
   login(input: LoginInput!): AuthPayload!
   paySalary(input: PaySalaryInput!): SalaryPayment!
   recordDefect(input: RecordDefectInput!): DefectRecord!
   register(input: RegisterInput!): AuthPayload!
   setExchangeRate(input: SetExchangeRateInput!): ExchangeRate!
+  submitPlatformPayment(input: SubmitPaymentInput!): PlatformPaymentView!
   updateBusiness(input: UpdateBusinessInput!): BusinessView!
+  updateOwner(input: UpdateOwnerInput!): OwnerView!
+}
+
+type MyBillingView {
+  blocked: Boolean!
+  freeAccess: Boolean!
+  paidUntil: DateTime
+  payments: [PlatformPaymentView!]!
+  status: String!
+}
+
+type OwnerDetailView {
+  blocked: Boolean!
+  businessId: String!
+  businessName: String!
+  createdAt: DateTime!
+  employeeCount: Int!
+  freeAccess: Boolean!
+  kind: String!
+  logoUrl: String
+  name: String!
+  paidUntil: DateTime
+  payments: [PlatformPaymentView!]!
+  phone: String!
+  status: String!
+  userId: String!
+  workspaces: [WsInfo!]!
+}
+
+type OwnerView {
+  blocked: Boolean!
+  businessId: String!
+  businessName: String!
+  createdAt: DateTime!
+  freeAccess: Boolean!
+  kind: String!
+  logoUrl: String
+  name: String!
+  paidUntil: DateTime
+  phone: String!
+  status: String!
+  userId: String!
+  workspaceCount: Int!
 }
 
 input PaySalaryInput {
@@ -288,6 +364,36 @@ type Payment {
   date: DateTime!
   exchangeRate: Float!
   id: String!
+}
+
+type PlatformPaymentView {
+  amountUzs: Float!
+  businessId: String!
+  businessName: String
+  createdAt: DateTime!
+  id: String!
+  months: Int!
+  note: String
+  ownerName: String
+  receiptUrl: String
+  status: String!
+}
+
+type PlatformStatsView {
+  ownerCount: Int!
+  pendingCount: Int!
+  userCount: Int!
+  workerCount: Int!
+}
+
+type PlatformUserView {
+  businessName: String
+  createdAt: DateTime!
+  id: String!
+  name: String!
+  phone: String!
+  platformRole: String!
+  roleLabel: String!
 }
 
 type ProductTemplate {
@@ -336,6 +442,7 @@ enum PurchaseSource {
 }
 
 type Query {
+  allUsers: [PlatformUserView!]!
   consolidatedReport: ConsolidatedReport!
   customers: [Customer!]!
   employees: [Employee!]!
@@ -347,12 +454,19 @@ type Query {
   latestExchangeRate(date: DateTime): ExchangeRate!
   me: String!
   myAuth: AuthPayload!
+  myBilling: MyBillingView!
   myBusiness: BusinessView!
+  mySalaries: [SalaryPayment!]!
+  ownerDetail(businessId: String!): OwnerDetailView!
+  owners: [OwnerView!]!
   pendingOwnerRequests: [JoinRequestView!]!
+  pendingPlatformPayments: [PlatformPaymentView!]!
   pendingWorkerRequests: [JoinRequestView!]!
+  platformStats: PlatformStatsView!
   productTemplates: [ProductTemplate!]!
   productionBatches: [ProductionBatch!]!
   purchases: [Purchase!]!
+  salaryHistory: [SalaryPayment!]!
   sale(id: String!): Sale!
   sales: [Sale!]!
   shipment(id: String!): Shipment!
@@ -360,6 +474,7 @@ type Query {
   shipments: [Shipment!]!
   suppliers: [Supplier!]!
   transfers: [StockTransfer!]!
+  userDetail(userId: String!): UserDetailView!
 }
 
 input RecordDefectInput {
@@ -372,6 +487,7 @@ input RecordDefectInput {
 
 input RegisterInput {
   accountType: String!
+  businessKind: String
   businessName: String
   name: String!
   password: String!
@@ -380,10 +496,13 @@ input RegisterInput {
 
 type SalaryPayment {
   amountUzs: Float!
+  confirmedAt: DateTime
   date: DateTime!
   employeeId: String!
+  employeeName: String
   id: String!
   period: String!
+  status: String!
 }
 
 enum SalaryType {
@@ -477,6 +596,13 @@ type StockTransfer {
   volumeM3: Float!
 }
 
+input SubmitPaymentInput {
+  amountUzs: Float!
+  months: Int!
+  note: String
+  receiptUrl: String
+}
+
 type Supplier {
   createdAt: DateTime!
   id: String!
@@ -496,6 +622,25 @@ input UpdateBusinessInput {
   name: String!
 }
 
+input UpdateOwnerInput {
+  businessId: String!
+  businessName: String!
+  name: String!
+  newPassword: String
+  phone: String!
+}
+
+type UserDetailView {
+  createdAt: DateTime!
+  id: String!
+  memberships: [MembershipInfo!]!
+  name: String!
+  ownedBusinessName: String
+  phone: String!
+  platformRole: String!
+  roleLabel: String!
+}
+
 type WorkspaceBrief {
   id: String!
   name: String!
@@ -512,4 +657,10 @@ type WorkspacePnl {
   transferInUzs: Float!
   type: String!
   workspaceId: String!
+}
+
+type WsInfo {
+  id: String!
+  name: String!
+  type: String!
 }

@@ -16,6 +16,9 @@ export interface BusinessBrief {
   name: string;
   logoUrl: string | null;
   status: string; // PENDING | ACTIVE | REJECTED
+  blocked?: boolean; // obuna tugagan, faqat /tolov ochiq
+  paidUntil?: string | null;
+  freeAccess?: boolean;
 }
 
 export interface AuthData {

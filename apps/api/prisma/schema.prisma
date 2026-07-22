@@ -107,6 +107,13 @@ enum BusinessStatus {
   REJECTED
 }
 
+// Biznes turi — qaysi makon(lar) ochiladi.
+enum BusinessKind {
+  WOOD_ONLY // faqat Yog'och sotuvi
+  LUMBER_ONLY // faqat Taxta sotuvi
+  BOTH // ikkalasi (ichki transfer mavjud)
+}
+
 enum JoinRequestType {
   OWNER_SIGNUP // yangi biznes egasi — CEO tasdiqlaydi
   WORKER_JOIN // ishchi kirishi — biznes egasi tasdiqlaydi
@@ -116,6 +123,12 @@ enum RequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+// Oylik tasdig'i: owner to'ladi (PENDING) → ishchi qabul qildi (CONFIRMED).
+enum SalaryStatus {
+  PENDING
+  CONFIRMED
 }
 
 model User {
@@ -141,17 +154,42 @@ model Business {
   logoUrl   String?
   ownerId   String
   status    BusinessStatus @default(PENDING)
+  kind      BusinessKind   @default(BOTH)
 
-  owner        User          @relation("BusinessOwner", fields: [ownerId], references: [id])
-  workspaces   Workspace[]
-  joinRequests JoinRequest[]
-  employees    Employee[]
+  // Platforma obunasi: paidUntil'gacha ochiq; freeAccess = CEO tekin ruxsat bergan
+  paidUntil  DateTime?
+  freeAccess Boolean   @default(false)
+
+  owner            User              @relation("BusinessOwner", fields: [ownerId], references: [id])
+  workspaces       Workspace[]
+  joinRequests     JoinRequest[]
+  employees        Employee[]
+  platformPayments PlatformPayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([ownerId])
   @@index([status])
+}
+
+// Owner platformaga to'lovi — CEO tasdiqlaydi, biznes muddatini uzaytiradi.
+model PlatformPayment {
+  id          String        @id @default(cuid())
+  businessId  String
+  amountUzs   Decimal       @db.Decimal(18, 2)
+  months      Int           @default(1) // necha oyga
+  note        String?
+  receiptUrl  String? // chek rasmi (ixtiyoriy)
+  status      RequestStatus @default(PENDING)
+  decidedById String?
+  decidedAt   DateTime?
+
+  business Business @relation(fields: [businessId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId, status])
 }
 
 // Tasdiqlash so'rovlari: OWNER_SIGNUP → CEO; WORKER_JOIN → biznes egasi.
@@ -526,11 +564,13 @@ model Employee {
 }
 
 model SalaryPayment {
-  id         String   @id @default(cuid())
-  employeeId String
-  amountUzs  Decimal  @db.Decimal(18, 2)
-  period     String // masalan "2026-06"
-  date       DateTime
+  id          String       @id @default(cuid())
+  employeeId  String
+  amountUzs   Decimal      @db.Decimal(18, 2)
+  period      String // masalan "2026-06"
+  date        DateTime
+  status      SalaryStatus @default(PENDING) // owner to'ladi → ishchi tasdiqlaydi
+  confirmedAt DateTime? // ishchi qabul qilgan vaqt
 
   employee Employee @relation(fields: [employeeId], references: [id])
 

@@ -120,12 +120,75 @@ export class EmployeesService {
       return p;
     });
 
+    return EmployeesService.toSalaryGql(payment, employee.name);
+  }
+
+  /** Ishchi o'z oyliklarini ko'radi (User.id orqali bog'langan Employee). */
+  async mySalaries(userId: string): Promise<SalaryPayment[]> {
+    const rows = await this.prisma.raw.salaryPayment.findMany({
+      where: { employee: { userId } },
+      include: { employee: { select: { name: true } } },
+      orderBy: { date: 'desc' },
+    });
+    return rows.map((r) => EmployeesService.toSalaryGql(r, r.employee.name));
+  }
+
+  /** Ishchi oylikni "qabul qildim" deb tasdiqlaydi. */
+  async confirmSalary(
+    userId: string,
+    paymentId: string,
+  ): Promise<SalaryPayment> {
+    const payment = await this.prisma.raw.salaryPayment.findUnique({
+      where: { id: paymentId },
+      include: { employee: { select: { name: true, userId: true } } },
+    });
+    if (!payment || payment.employee.userId !== userId) {
+      throw new NotFoundException('Oylik yozuvi topilmadi.');
+    }
+    if (payment.status === 'CONFIRMED') {
+      return EmployeesService.toSalaryGql(payment, payment.employee.name);
+    }
+    const updated = await this.prisma.raw.salaryPayment.update({
+      where: { id: paymentId },
+      data: { status: 'CONFIRMED', confirmedAt: new Date() },
+    });
+    return EmployeesService.toSalaryGql(updated, payment.employee.name);
+  }
+
+  /** Owner: shu makondagi (yoki umumiy) ishchilar oylik tarixi. */
+  async salaryHistory(workspaceId: string): Promise<SalaryPayment[]> {
+    const rows = await this.prisma.raw.salaryPayment.findMany({
+      where: {
+        employee: { OR: [{ workspaceId }, { workspaceId: null }] },
+      },
+      include: { employee: { select: { name: true } } },
+      orderBy: { date: 'desc' },
+      take: 100,
+    });
+    return rows.map((r) => EmployeesService.toSalaryGql(r, r.employee.name));
+  }
+
+  private static toSalaryGql(
+    row: {
+      id: string;
+      employeeId: string;
+      amountUzs: Prisma.Decimal;
+      period: string;
+      date: Date;
+      status: string;
+      confirmedAt: Date | null;
+    },
+    employeeName: string | null,
+  ): SalaryPayment {
     return {
-      id: payment.id,
-      employeeId: payment.employeeId,
-      amountUzs: payment.amountUzs.toNumber(),
-      period: payment.period,
-      date: payment.date,
+      id: row.id,
+      employeeId: row.employeeId,
+      employeeName,
+      amountUzs: row.amountUzs.toNumber(),
+      period: row.period,
+      date: row.date,
+      status: row.status,
+      confirmedAt: row.confirmedAt,
     };
   }
 

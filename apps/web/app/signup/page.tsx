@@ -18,7 +18,7 @@ const ROLES = [
     value: 'OWNER' as const,
     icon: '👑',
     title: 'Biznes egasi',
-    desc: "O'z biznesingizni ochasiz — CEO tasdig'idan so'ng ikkala makon tayyor bo'ladi.",
+    desc: "O'z biznesingizni ochasiz — CEO tasdig'idan so'ng makon(lar) tayyor bo'ladi.",
   },
   {
     value: 'WORKER' as const,
@@ -28,9 +28,33 @@ const ROLES = [
   },
 ];
 
+const KINDS = [
+  {
+    value: 'BOTH' as const,
+    icon: '🌲🪵',
+    title: "Yog'och + Taxta",
+    desc: 'Ikkala makon, ichki transfer bilan',
+  },
+  {
+    value: 'WOOD_ONLY' as const,
+    icon: '🌲',
+    title: "Faqat Yog'och sotuvi",
+    desc: 'Bitta makon — yog‘och savdosi',
+  },
+  {
+    value: 'LUMBER_ONLY' as const,
+    icon: '🪵',
+    title: 'Faqat Taxta sotuvi',
+    desc: 'Bitta makon — taxta ishlab chiqarish',
+  },
+];
+
 export default function SignupPage() {
   const router = useRouter();
   const [accountType, setAccountType] = useState<'OWNER' | 'WORKER'>('OWNER');
+  const [businessKind, setBusinessKind] = useState<
+    'BOTH' | 'WOOD_ONLY' | 'LUMBER_ONLY'
+  >('BOTH');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('+998');
   const [businessName, setBusinessName] = useState('');
@@ -60,6 +84,7 @@ export default function SignupPage() {
           accountType,
           businessName:
             accountType === 'OWNER' ? businessName.trim() : undefined,
+          businessKind: accountType === 'OWNER' ? businessKind : undefined,
         },
       },
     }).catch(() => null);
@@ -67,8 +92,12 @@ export default function SignupPage() {
     if (!data) return;
 
     session.save(data);
-    if (data.pending) {
+    if (data.platformRole === 'CEO') {
+      router.replace('/ceo');
+    } else if (data.pending) {
       router.replace('/kutish');
+    } else if (data.business?.blocked) {
+      router.replace('/obuna');
     } else if (data.workspaces.length > 1) {
       setPickList(data.workspaces);
     } else {
@@ -147,15 +176,54 @@ export default function SignupPage() {
                 </label>
 
                 {accountType === 'OWNER' && (
-                  <label className="grid gap-1.5 animate-[fadeIn_.3s_ease]">
-                    <span className="field-label">Biznes nomi</span>
-                    <input
-                      value={businessName}
-                      onChange={(e) => setBusinessName(e.target.value)}
-                      className="field-input"
-                      placeholder="Masalan: Premium Wood"
-                    />
-                  </label>
+                  <>
+                    <label className="grid gap-1.5 animate-[fadeIn_.3s_ease]">
+                      <span className="field-label">Biznes nomi</span>
+                      <input
+                        value={businessName}
+                        onChange={(e) => setBusinessName(e.target.value)}
+                        className="field-input"
+                        placeholder="Masalan: Premium Wood"
+                      />
+                    </label>
+
+                    <div className="grid gap-2 animate-[fadeIn_.3s_ease]">
+                      <span className="field-label">Biznes turi</span>
+                      {KINDS.map((k) => (
+                        <button
+                          key={k.value}
+                          type="button"
+                          onClick={() => setBusinessKind(k.value)}
+                          className={`flex items-center gap-3 text-left rounded-xl border-2 px-3.5 py-2.5 transition-all ${
+                            businessKind === k.value
+                              ? 'border-brand bg-brand-faint'
+                              : 'border-neutral-200 bg-white/70 hover:border-brand/40'
+                          }`}
+                        >
+                          <span className="text-lg leading-none">{k.icon}</span>
+                          <span className="min-w-0">
+                            <span className="block font-semibold text-sm">
+                              {k.title}
+                            </span>
+                            <span className="block text-[11px] text-neutral-500 leading-snug">
+                              {k.desc}
+                            </span>
+                          </span>
+                          <span
+                            className={`ml-auto w-4 h-4 rounded-full border-2 flex-none grid place-items-center ${
+                              businessKind === k.value
+                                ? 'border-brand'
+                                : 'border-neutral-300'
+                            }`}
+                          >
+                            {businessKind === k.value && (
+                              <span className="w-2 h-2 rounded-full bg-brand" />
+                            )}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
 
                 <label className="grid gap-1.5">

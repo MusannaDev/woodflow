@@ -6,9 +6,21 @@ import {
 import { BusinessService } from './business.service';
 import {
   BusinessView,
+  CreateOwnerInput,
+  DecidePaymentInput,
   DecideRequestInput,
+  GrantAccessInput,
   JoinRequestView,
+  MyBillingView,
+  OwnerDetailView,
+  OwnerView,
+  PlatformPaymentView,
+  PlatformStatsView,
+  PlatformUserView,
+  SubmitPaymentInput,
   UpdateBusinessInput,
+  UpdateOwnerInput,
+  UserDetailView,
 } from './dto/business.types';
 
 /**
@@ -31,6 +43,97 @@ export class BusinessResolver {
     @Args('input') input: DecideRequestInput,
   ) {
     return this.businessService.decideOwnerRequest(user.userId, input);
+  }
+
+  @Query(() => PlatformStatsView)
+  platformStats(@CurrentUser() user: AuthUser) {
+    return this.businessService.platformStats(user.userId);
+  }
+
+  @Query(() => [OwnerView])
+  owners(@CurrentUser() user: AuthUser) {
+    return this.businessService.owners(user.userId);
+  }
+
+  @Mutation(() => OwnerView)
+  createOwner(
+    @CurrentUser() user: AuthUser,
+    @Args('input') input: CreateOwnerInput,
+  ) {
+    return this.businessService.createOwner(user.userId, input);
+  }
+
+  @Mutation(() => OwnerView)
+  updateOwner(
+    @CurrentUser() user: AuthUser,
+    @Args('input') input: UpdateOwnerInput,
+  ) {
+    return this.businessService.updateOwner(user.userId, input);
+  }
+
+  @Mutation(() => Boolean)
+  deleteOwner(
+    @CurrentUser() user: AuthUser,
+    @Args('businessId') businessId: string,
+  ) {
+    return this.businessService.deleteOwner(user.userId, businessId);
+  }
+
+  @Query(() => [PlatformUserView])
+  allUsers(@CurrentUser() user: AuthUser) {
+    return this.businessService.allUsers(user.userId);
+  }
+
+  @Query(() => OwnerDetailView)
+  ownerDetail(
+    @CurrentUser() user: AuthUser,
+    @Args('businessId') businessId: string,
+  ) {
+    return this.businessService.ownerDetail(user.userId, businessId);
+  }
+
+  @Query(() => UserDetailView)
+  userDetail(
+    @CurrentUser() user: AuthUser,
+    @Args('userId') userId: string,
+  ) {
+    return this.businessService.userDetail(user.userId, userId);
+  }
+
+  // ── Platforma to'lovi (obuna) ──
+
+  @Query(() => MyBillingView)
+  myBilling(@CurrentUser() user: AuthUser) {
+    return this.businessService.myBilling(user.userId);
+  }
+
+  @Mutation(() => PlatformPaymentView)
+  submitPlatformPayment(
+    @CurrentUser() user: AuthUser,
+    @Args('input') input: SubmitPaymentInput,
+  ) {
+    return this.businessService.submitPlatformPayment(user.userId, input);
+  }
+
+  @Query(() => [PlatformPaymentView])
+  pendingPlatformPayments(@CurrentUser() user: AuthUser) {
+    return this.businessService.pendingPlatformPayments(user.userId);
+  }
+
+  @Mutation(() => PlatformPaymentView)
+  decidePlatformPayment(
+    @CurrentUser() user: AuthUser,
+    @Args('input') input: DecidePaymentInput,
+  ) {
+    return this.businessService.decidePlatformPayment(user.userId, input);
+  }
+
+  @Mutation(() => OwnerView)
+  grantFreeAccess(
+    @CurrentUser() user: AuthUser,
+    @Args('input') input: GrantAccessInput,
+  ) {
+    return this.businessService.grantFreeAccess(user.userId, input);
   }
 
   // ── OWNER ──

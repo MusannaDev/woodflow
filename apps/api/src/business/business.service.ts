@@ -396,6 +396,7 @@ export class BusinessService {
         },
       });
       await tx.joinRequest.deleteMany({ where: { businessId } });
+      await tx.platformPayment.deleteMany({ where: { businessId } });
       await tx.employee.deleteMany({
         where: { OR: [{ workspaceId: { in: wsIds } }, { businessId }] },
       });

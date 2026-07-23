@@ -1,15 +1,15 @@
 'use client';
 
 import { useMutation, useQuery } from '@apollo/client';
-import { FormEvent, useState } from 'react';
-import { MY_BILLING, SUBMIT_PAYMENT } from '../../../lib/queries';
-import { formatMoneyInput, parseMoney } from '../../../lib/format';
+import { useEffect, useState } from 'react';
+import { MY_AUTH, MY_BILLING, SUBMIT_PAYMENT } from '../../../lib/queries';
+import { PAYMENT_INFO, Plan, PLANS } from '../../../lib/payment';
+import { AuthData, session } from '../../../lib/session';
 
 /**
- * Obuna / Platforma to'lovi (owner):
- *  - joriy holat (muddat / bloklangan / tekin ruxsat)
- *  - to'lov yuborish (CEO tasdiqlaydi → muddat uzayadi)
- *  - to'lovlar tarixi
+ * Obuna — tarif rejalari + karta raqamiga to'lov modali.
+ * Owner reja tanlaydi → kartaga o'tkazadi → "to'ladim" tasdiqlaydi →
+ * to'lov PENDING bo'lib CEO ga boradi → CEO tasdiqlaganda obuna uzayadi.
  */
 
 interface Payment {
@@ -43,193 +43,382 @@ export default function ObunaPage() {
     MY_BILLING,
     { fetchPolicy: 'cache-and-network' },
   );
-  const [submit, { loading: sending }] = useMutation(SUBMIT_PAYMENT);
+  const [selected, setSelected] = useState<Plan | null>(null);
 
-  const [amount, setAmount] = useState('');
-  const [months, setMonths] = useState('1');
-  const [note, setNote] = useState('');
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setMsg(null);
-    const amountUzs = parseMoney(amount);
-    const m = parseInt(months, 10);
-    if (amountUzs <= 0) return setMsg({ ok: false, text: 'Summani kiriting.' });
-    if (!(m >= 1)) return setMsg({ ok: false, text: 'Oy sonini kiriting.' });
-    try {
-      await submit({
-        variables: {
-          input: { amountUzs, months: m, note: note.trim() || null },
-        },
-      });
-      setMsg({
-        ok: true,
-        text: 'To‘lov yuborildi — CEO tasdiqlagach obuna uzayadi.',
-      });
-      setAmount('');
-      setNote('');
-      await refetch();
-    } catch (err) {
-      setMsg({
-        ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
-      });
+  // Sessiyani serverdan yangilaymiz: CEO tasdiqlagach (blocked o'zgarsa)
+  // qayta login qilmasdan avtomatik ochiladi.
+  const { data: authData } = useQuery<{ myAuth: AuthData }>(MY_AUTH, {
+    fetchPolicy: 'network-only',
+  });
+  useEffect(() => {
+    const fresh = authData?.myAuth;
+    if (!fresh) return;
+    const wasBlocked = session.business()?.blocked ?? false;
+    session.save(fresh);
+    if (wasBlocked !== (fresh.business?.blocked ?? false)) {
+      window.location.reload(); // shell menyusi/gating yangilanishi uchun
     }
-  }
+  }, [authData]);
 
-  if (loading && !data)
-    return <p className="text-neutral-500">Yuklanmoqda…</p>;
-  if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+  if (loading && !data) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (error) return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
 
   const b = data!.myBilling;
-  const payments = b.payments;
 
   return (
-    <div className="grid grid-cols-1 gap-6 max-w-2xl">
-      <div>
-        <h1 className="text-xl font-bold">Obuna</h1>
-        <p className="text-sm text-neutral-500 mt-1">
-          Platformadan foydalanish uchun to&apos;lov qiling — CEO tasdiqlaydi.
+    <div className="grid grid-cols-1 gap-8 max-w-4xl">
+      {/* Sarlavha */}
+      <div className="text-center">
+        <h1 className="font-serif text-3xl sm:text-4xl tracking-tight">
+          Obunani tanlang
+        </h1>
+        <p className="text-sm text-neutral-500 mt-2 max-w-lg mx-auto">
+          Platformadan uzluksiz foydalanish uchun tarif tanlab, kartaga
+          to&apos;lov qiling. CEO tasdiqlagach obuna avtomatik uzayadi.
         </p>
       </div>
 
-      {/* Holat kartasi */}
-      {b.freeAccess ? (
-        <div className="card p-5 border-emerald-200 bg-emerald-50/50">
-          <div className="text-sm font-semibold text-emerald-700">
-            ✓ Tekin ruxsat faol
-          </div>
-          <p className="text-xs text-emerald-600/80 mt-1">
-            CEO sizga to&apos;lovsiz foydalanish ruxsatini bergan.
-          </p>
-        </div>
-      ) : b.blocked ? (
-        <div className="card p-5 border-red-200 bg-red-50/50">
-          <div className="text-sm font-semibold text-red-700">
-            ⚠ Obuna tugagan — platforma bloklangan
-          </div>
-          <p className="text-xs text-red-600/80 mt-1">
-            Davom etish uchun quyida to&apos;lov qiling. CEO tasdiqlagach barcha
-            bo&apos;limlar ochiladi.
-          </p>
-        </div>
-      ) : b.paidUntil ? (
-        <div className="card p-5 border-emerald-200 bg-emerald-50/50">
-          <div className="text-sm font-semibold text-emerald-700">
-            ✓ Obuna faol
-          </div>
-          <p className="text-xs text-emerald-600/80 mt-1">
-            {uzDate(b.paidUntil)} gacha ochiq.
-          </p>
-        </div>
-      ) : (
-        <div className="card p-5 border-amber-200 bg-amber-50/50">
-          <div className="text-sm font-semibold text-amber-700">
-            Hali to&apos;lov qilinmagan
-          </div>
-          <p className="text-xs text-amber-600/80 mt-1">
-            Quyida birinchi to&apos;lovni yuboring.
-          </p>
-        </div>
+      {/* Holat */}
+      <StatusBanner b={b} />
+
+      {/* Tariflar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {PLANS.map((p) => (
+          <PlanCard key={p.months} plan={p} onPick={() => setSelected(p)} />
+        ))}
+      </div>
+
+      {/* Tarix */}
+      <History payments={b.payments} />
+
+      {/* To'lov modali */}
+      {selected && (
+        <PayModal
+          plan={selected}
+          onClose={() => setSelected(null)}
+          onDone={() => {
+            setSelected(null);
+            refetch();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ───────────────── Holat banneri ───────────────── */
+
+function StatusBanner({ b }: { b: Billing }) {
+  if (b.freeAccess)
+    return (
+      <Banner
+        cls="border-blue-200 bg-blue-50/60 text-blue-700"
+        title="🎁 Tekin ruxsat faol"
+        text="CEO sizga to'lovsiz foydalanish ruxsatini bergan."
+      />
+    );
+  if (b.blocked)
+    return (
+      <Banner
+        cls="border-red-200 bg-red-50/60 text-red-700"
+        title="🔒 Obuna tugagan — platforma bloklangan"
+        text="Davom etish uchun quyidan tarif tanlab to'lov qiling."
+      />
+    );
+  if (b.paidUntil)
+    return (
+      <Banner
+        cls="border-emerald-200 bg-emerald-50/60 text-emerald-700"
+        title="✓ Obuna faol"
+        text={`${uzDate(b.paidUntil)} gacha ochiq. Muddatni oldindan uzaytirishingiz mumkin.`}
+      />
+    );
+  return (
+    <Banner
+      cls="border-amber-200 bg-amber-50/60 text-amber-700"
+      title="Hali to'lov qilinmagan"
+      text="Boshlash uchun quyidan tarif tanlang."
+    />
+  );
+}
+
+function Banner({
+  cls,
+  title,
+  text,
+}: {
+  cls: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className={`card p-4 border ${cls}`}>
+      <div className="text-sm font-semibold">{title}</div>
+      <p className="text-xs opacity-80 mt-0.5">{text}</p>
+    </div>
+  );
+}
+
+/* ───────────────── Tarif kartasi ───────────────── */
+
+function PlanCard({ plan, onPick }: { plan: Plan; onPick: () => void }) {
+  return (
+    <div
+      className={`relative rounded-3xl p-5 flex flex-col bg-white transition-all hover:-translate-y-1 ${
+        plan.popular
+          ? 'ring-2 ring-brand shadow-xl shadow-brand/15'
+          : 'border border-neutral-200/80 shadow-sm hover:shadow-lg'
+      }`}
+    >
+      {plan.popular && (
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-bold text-white bg-brand rounded-full px-3 py-1 shadow-lg shadow-brand/30">
+          ⭐ Ommabop
+        </span>
       )}
 
-      {msg && (
-        <p
-          className={`text-sm rounded-lg px-3.5 py-2.5 border ${
-            msg.ok
-              ? 'text-emerald-700 bg-emerald-50 border-emerald-100'
-              : 'text-red-600 bg-red-50 border-red-100'
-          }`}
-        >
-          {msg.text}
-        </p>
-      )}
+      <div className="text-sm font-semibold text-neutral-500 tracking-wide uppercase">
+        {plan.title}
+      </div>
 
-      {/* To'lov formasi */}
-      <form onSubmit={onSubmit} className="card p-5 grid gap-4">
-        <h2 className="font-semibold text-sm">To&apos;lov yuborish</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <label className="grid gap-1.5">
-            <span className="field-label text-xs">Summa (so&apos;m)</span>
-            <input
-              value={amount}
-              onChange={(e) => setAmount(formatMoneyInput(e.target.value))}
-              inputMode="numeric"
-              placeholder="200 000"
-              className="field-input !py-2"
-            />
-          </label>
-          <label className="grid gap-1.5">
-            <span className="field-label text-xs">Necha oyga</span>
-            <input
-              value={months}
-              onChange={(e) => setMonths(e.target.value.replace(/\D/g, ''))}
-              inputMode="numeric"
-              placeholder="1"
-              className="field-input !py-2"
-            />
-          </label>
-        </div>
-        <label className="grid gap-1.5">
-          <span className="field-label text-xs">
-            Izoh / chek raqami (ixtiyoriy)
+      <div className="mt-3">
+        <span className="text-xs text-neutral-400 line-through block h-4">
+          {plan.oldPriceUzs ? `${fmt(plan.oldPriceUzs)} so'm` : ''}
+        </span>
+        <div className="flex items-end gap-1.5 mt-0.5">
+          <span className="font-serif text-3xl font-bold text-neutral-900 tabular-nums">
+            {fmt(plan.priceUzs)}
           </span>
+          <span className="text-neutral-500 mb-1 text-sm">so&apos;m</span>
+        </div>
+      </div>
+
+      {plan.discount ? (
+        <span className="mt-3 inline-flex w-fit items-center gap-1 text-[11px] font-bold text-white bg-gradient-to-r from-amber-500 to-orange-500 rounded-full px-2.5 py-1">
+          🔥 {plan.discount} tejaysiz
+        </span>
+      ) : (
+        <span className="mt-3 inline-flex w-fit items-center gap-1 text-[11px] font-semibold text-neutral-500 bg-neutral-100 rounded-full px-2.5 py-1">
+          Boshlang&apos;ich
+        </span>
+      )}
+
+      <div className="text-xs text-neutral-500 mt-3 leading-relaxed flex-1">
+        {plan.months} oylik to&apos;liq kirish · barcha bo&apos;limlar · cheksiz
+        foydalanish
+      </div>
+
+      <button
+        onClick={onPick}
+        className={`mt-4 rounded-xl py-2.5 text-sm font-semibold transition-all ${
+          plan.popular
+            ? 'bg-brand text-white hover:opacity-90 shadow-lg shadow-brand/25'
+            : 'border-2 border-neutral-200 text-neutral-700 hover:border-brand hover:text-brand'
+        }`}
+      >
+        Tanlash
+      </button>
+    </div>
+  );
+}
+
+/* ───────────────── To'lov modali ───────────────── */
+
+function PayModal({
+  plan,
+  onClose,
+  onDone,
+}: {
+  plan: Plan;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [submit, { loading }] = useMutation(SUBMIT_PAYMENT);
+  const [agree, setAgree] = useState(false);
+  const [paid, setPaid] = useState(false);
+  const [note, setNote] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  function copyCard() {
+    navigator.clipboard
+      ?.writeText(PAYMENT_INFO.cardNumber.replace(/\s/g, ''))
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => null);
+  }
+
+  async function send() {
+    setErr(null);
+    try {
+      await submit({
+        variables: {
+          input: {
+            amountUzs: plan.priceUzs,
+            months: plan.months,
+            note: note.trim() || `${plan.title} tarifi`,
+          },
+        },
+      });
+      onDone();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Xato yuz berdi.');
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        aria-label="Yopish"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      />
+      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-[slideUp_.25s_ease] max-h-[92vh] overflow-y-auto">
+        {/* Sarlavha */}
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100">
+          <h2 className="font-semibold flex-1">Kartaga to&apos;lov qilish</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 grid place-items-center rounded-full hover:bg-neutral-100 text-neutral-400"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Karta rekvizitlari */}
+        <div className="px-5 py-4">
+          <div className="rounded-2xl bg-gradient-to-br from-[#1c130a] to-[#3a2a17] text-white p-5 relative overflow-hidden">
+            <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-amber-400/10" />
+            <div className="text-[11px] uppercase tracking-widest text-amber-300/80">
+              {PAYMENT_INFO.bank}
+            </div>
+            <button
+              onClick={copyCard}
+              className="mt-2 flex items-center gap-2 font-mono text-lg sm:text-xl tracking-wider hover:text-amber-200 transition-colors"
+              title="Nusxa olish"
+            >
+              {PAYMENT_INFO.cardNumber}
+              <span className="text-xs text-amber-300">
+                {copied ? '✓ nusxa olindi' : '📋'}
+              </span>
+            </button>
+            <div className="mt-3 text-xs text-white/60 uppercase">
+              Qabul qiluvchi
+            </div>
+            <div className="text-sm font-semibold">{PAYMENT_INFO.holder}</div>
+          </div>
+
+          {/* Summa */}
+          <div className="mt-4 rounded-2xl bg-brand-faint border border-brand/15 px-4 py-3 flex items-center justify-between">
+            <span className="text-sm text-neutral-600">
+              {plan.months} oy uchun
+            </span>
+            <span className="font-serif text-2xl font-bold text-brand tabular-nums">
+              {fmt(plan.priceUzs)} so&apos;m
+            </span>
+          </div>
+
+          {/* Roziliklar */}
+          <label className="flex items-start gap-2.5 mt-4 text-sm cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={agree}
+              onChange={(e) => setAgree(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-[rgb(var(--brand))]"
+            />
+            <span className="text-neutral-600">
+              Xizmat ko&apos;rsatish{' '}
+              <span className="font-semibold text-brand">shartlari</span> va{' '}
+              <span className="font-semibold text-brand">maxfiylik siyosati</span>{' '}
+              bilan tanishdim.
+            </span>
+          </label>
+          <label className="flex items-start gap-2.5 mt-3 text-sm cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={paid}
+              onChange={(e) => setPaid(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-[rgb(var(--brand))]"
+            />
+            <span className="text-neutral-600">
+              Yuqoridagi kartaga{' '}
+              <span className="font-semibold">{fmt(plan.priceUzs)} so&apos;m</span>{' '}
+              to&apos;lovni amalga oshirdim.
+            </span>
+          </label>
+
+          {/* Chek/izoh */}
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Masalan: Payme orqali, chek #12345"
-            className="field-input !py-2"
+            placeholder="Chek raqami yoki izoh (ixtiyoriy)"
+            className="field-input !py-2 mt-4"
           />
-        </label>
-        <button
-          disabled={sending}
-          className="btn-primary disabled:opacity-40"
-        >
-          {sending ? 'Yuborilmoqda…' : 'To‘lovni yuborish'}
-        </button>
-      </form>
 
-      {/* Tarix */}
-      <section className="card overflow-hidden">
-        <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
-          To&apos;lovlar tarixi ({payments.length})
-        </h2>
-        {payments.length === 0 ? (
-          <p className="px-5 py-8 text-sm text-neutral-500 text-center">
-            Hali to&apos;lov yo&apos;q.
+          {err && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mt-3">
+              {err}
+            </p>
+          )}
+
+          <button
+            onClick={send}
+            disabled={!agree || !paid || loading}
+            className="btn-primary w-full mt-4 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Yuborilmoqda…' : "To'lovni tasdiqlash"}
+          </button>
+          <p className="text-[11px] text-neutral-400 text-center mt-2">
+            To&apos;lov CEO tomonidan tekshirilib tasdiqlanadi.
           </p>
-        ) : (
-          <ul className="divide-y divide-neutral-100">
-            {payments.map((p) => {
-              const st = PSTATUS[p.status] ?? PSTATUS.PENDING;
-              return (
-                <li key={p.id} className="px-5 py-3.5 flex items-center gap-3">
-                  <span className="flex-1 min-w-0">
-                    <span className="block font-semibold tabular-nums">
-                      {fmt(p.amountUzs)} so&apos;m
-                      <span className="text-xs text-neutral-400 font-normal">
-                        {' '}
-                        · {p.months} oy
-                      </span>
-                    </span>
-                    <span className="block text-xs text-neutral-500 truncate">
-                      {uzDate(p.createdAt)}
-                      {p.note ? ` · ${p.note}` : ''}
-                    </span>
-                  </span>
-                  <span
-                    className={`text-[11px] font-medium rounded-full px-2.5 py-1 flex-none ${st.cls}`}
-                  >
-                    {st.label}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+        </div>
+      </div>
     </div>
+  );
+}
+
+/* ───────────────── Tarix ───────────────── */
+
+function History({ payments }: { payments: Payment[] }) {
+  return (
+    <section className="card overflow-hidden">
+      <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
+        To&apos;lovlar tarixi ({payments.length})
+      </h2>
+      {payments.length === 0 ? (
+        <p className="px-5 py-8 text-sm text-neutral-500 text-center">
+          Hali to&apos;lov yo&apos;q.
+        </p>
+      ) : (
+        <ul className="divide-y divide-neutral-100">
+          {payments.map((p) => {
+            const st = PSTATUS[p.status] ?? PSTATUS.PENDING;
+            return (
+              <li key={p.id} className="px-5 py-3.5 flex items-center gap-3">
+                <span className="flex-1 min-w-0">
+                  <span className="block font-semibold tabular-nums">
+                    {fmt(p.amountUzs)} so&apos;m
+                    <span className="text-xs text-neutral-400 font-normal">
+                      {' '}
+                      · {p.months} oy
+                    </span>
+                  </span>
+                  <span className="block text-xs text-neutral-500 truncate">
+                    {uzDate(p.createdAt)}
+                    {p.note ? ` · ${p.note}` : ''}
+                  </span>
+                </span>
+                <span
+                  className={`text-[11px] font-medium rounded-full px-2.5 py-1 flex-none ${st.cls}`}
+                >
+                  {st.label}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

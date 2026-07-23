@@ -1,0 +1,16 @@
+# Caddy reverse proxy (avtomatik HTTPS) — serverда ishga tushiriladi.
+#   docker compose -f deploy/docker-compose.https.yml up -d
+# Web (:3010) va API (:4010) shu serverда ishlab turgan bo'lishi kerak.
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    network_mode: host # localhost:3010 / :4010 ga ulanish uchun
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

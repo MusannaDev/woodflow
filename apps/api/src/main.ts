@@ -17,7 +17,10 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true }),
   );
-  app.enableCors();
+  // Production'da faqat frontend domeniga ruxsat (FRONTEND_ORIGIN=https://app.domen,https://...)
+  // Dev'da (env bo'sh) — hammaga ochiq
+  const origins = process.env.FRONTEND_ORIGIN?.split(',').map((s) => s.trim());
+  app.enableCors({ origin: origins && origins.length ? origins : true });
 
   // Biznes logolari: ./uploads → /uploads/*
   const uploadsDir = join(process.cwd(), 'uploads');

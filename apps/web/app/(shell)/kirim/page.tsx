@@ -1,9 +1,10 @@
 'use client';
 
 import { useMutation, useQuery } from '@apollo/client';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   CREATE_PURCHASE,
+  CREATE_SHIPMENT,
   KIRIM_PAGE,
   LATEST_RATE,
 } from '../../../lib/queries';
@@ -14,6 +15,7 @@ import {
   parseMoney,
   parseQty,
 } from '../../../lib/format';
+import { roundLogVolumeM3 } from '../../../lib/wood';
 import { session } from '../../../lib/session';
 
 /**
@@ -53,6 +55,8 @@ export default function KirimPage() {
     latestExchangeRate: { rubToUzs: number };
   }>(LATEST_RATE, { errorPolicy: 'ignore' });
   const [createPurchase, { loading: saving }] = useMutation(CREATE_PURCHASE);
+  const [createShipment, { loading: addingFura }] =
+    useMutation(CREATE_SHIPMENT);
 
   // Taxta workspace'ida fura/import yo'q — faqat mahalliy kirim
   const isLumber =
@@ -61,11 +65,31 @@ export default function KirimPage() {
     isLumber ? 'LOCAL_WHOLESALE' : 'RUSSIA_IMPORT',
   );
   const [shipmentId, setShipmentId] = useState('');
+
+  // Inline yangi fura (shipmentId === '__new')
+  const [fTruck, setFTruck] = useState('');
+  const [fColor, setFColor] = useState('');
+  const [fOwner, setFOwner] = useState('');
+  const [fPhone, setFPhone] = useState('+998');
+  const [fTransport, setFTransport] = useState('');
+  const [fCustoms, setFCustoms] = useState('');
   const [woodType, setWoodType] = useState('');
   const [grade, setGrade] = useState('1-nav');
   const [volume, setVolume] = useState('');
+
+  // Hajm kalkulyatori (yumaloq yog'och yoki taxta) — Hajm (m³) ni AVTO to'ldiradi
+  const [showCalc, setShowCalc] = useState(false);
+  const [cShape, setCShape] = useState<'SILINDR' | 'KONUS' | 'TAXTA'>('SILINDR');
+  const [cDiam, setCDiam] = useState('28'); // silindr ⌀ sm
+  const [cBase, setCBase] = useState('30'); // konus bosh ⌀ sm
+  const [cTop, setCTop] = useState('24'); // konus uch ⌀ sm
+  const [cLen, setCLen] = useState('6'); // uzunlik m
+  const [cW, setCW] = useState('0.2'); // taxta en m
+  const [cT, setCT] = useState('0.05'); // taxta qalinlik m
+  const [cQty, setCQty] = useState('');
   const [pieces, setPieces] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
+  const [priceMode, setPriceMode] = useState<'M3' | 'DONA'>('M3'); // narx m³ yoki dona bo'yicha
   const [rate, setRate] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -79,20 +103,85 @@ export default function KirimPage() {
     return (id: string | null) => (id ? (map.get(id) ?? '—') : '—');
   }, [data]);
 
+  // ─── KALKULYATOR (auto): shakl → bir dona → jami m³ ───
+  const calcPer =
+    cShape === 'TAXTA'
+      ? parseDecimal(cLen) * parseDecimal(cW) * parseDecimal(cT)
+      : cShape === 'SILINDR'
+        ? roundLogVolumeM3(parseDecimal(cDiam), parseDecimal(cDiam), parseDecimal(cLen))
+        : roundLogVolumeM3(parseDecimal(cBase), parseDecimal(cTop), parseDecimal(cLen));
+  const calcQ = parseQty(cQty) || 1;
+  const calcTotal = calcPer * calcQ;
+
+  // Kalkulyator ochiq bo'lса — Hajm (m³) va Dona AVTO to'ldiriladi
+  useEffect(() => {
+    if (!showCalc) return;
+    setVolume(calcTotal > 0 ? calcTotal.toFixed(3) : '');
+    if (parseQty(cQty) > 0) setPieces(cQty);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCalc, calcTotal, cQty]);
+
   // ─── JONLI TANNARX HISOBI ───
   const vol = parseDecimal(volume);
   const price = parseMoney(unitPrice);
+  const pcs = parseQty(pieces);
   const rateNum = isImport ? parseDecimal(rate) : 1;
-  const totalOriginal = vol * price; // asl valyutada (RUB yoki so'm)
+  const donaMode = priceMode === 'DONA';
+  // asl valyutada jami: dona bo'yicha = dona×narx; m³ bo'yicha = hajm×narx
+  const totalOriginal = donaMode ? pcs * price : vol * price;
+  // backend narxni m³ bo'yicha kutadi — dona bo'lsa m³ ekvivalentiga aylantiramiz
+  const sentUnitPrice = donaMode ? (vol > 0 ? totalOriginal / vol : 0) : price;
   const totalUzs = totalOriginal * rateNum;
   const costPerM3 = vol > 0 ? totalUzs / vol : 0;
 
+  const hasFura = !!shipmentId && shipmentId !== '__new';
   const canSubmit =
     woodType.trim().length >= 2 &&
     vol > 0 &&
     price > 0 &&
-    (!isImport || (rateNum > 0 && !!shipmentId)) &&
+    (!donaMode || pcs > 0) &&
+    (!isImport || (rateNum > 0 && hasFura)) &&
     !saving;
+
+  async function addFura() {
+    if (fTruck.trim().length < 3 || fOwner.trim().length < 2) {
+      setMsg({ ok: false, text: 'Fura raqami va ega ismini kiriting.' });
+      return;
+    }
+    setMsg(null);
+    try {
+      const res = await createShipment({
+        variables: {
+          input: {
+            truckNumber: fTruck.trim().toUpperCase(),
+            truckColor: fColor.trim() || null,
+            ownerName: fOwner.trim(),
+            ownerPhone: fPhone.trim() || null,
+            arrivalDate: new Date().toISOString(),
+            transportCost: parseMoney(fTransport),
+            customsCost: parseMoney(fCustoms),
+          },
+        },
+      });
+      await refetch();
+      setShipmentId(res.data.createShipment.id); // yangi fura tanlanadi
+      setFTruck('');
+      setFColor('');
+      setFOwner('');
+      setFPhone('+998');
+      setFTransport('');
+      setFCustoms('');
+      setMsg({
+        ok: true,
+        text: `Fura ${res.data.createShipment.truckNumber} qo'shildi va tanlandi.`,
+      });
+    } catch (err) {
+      setMsg({
+        ok: false,
+        text: err instanceof Error ? err.message : 'Fura qo‘shishda xato.',
+      });
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -107,7 +196,7 @@ export default function KirimPage() {
             grade: grade.trim() || '1-nav',
             volumeM3: vol,
             quantity: parseQty(pieces) > 0 ? parseQty(pieces) : null,
-            unitPrice: price,
+            unitPrice: sentUnitPrice,
             currency: isImport ? 'RUB' : 'UZS',
             exchangeRate: isImport ? rateNum : 1,
             date: new Date().toISOString(),
@@ -198,7 +287,7 @@ export default function KirimPage() {
 
           {/* Fura (faqat import) */}
           {isImport && (
-            <label className="grid gap-1.5 animate-[fadeIn_.3s_ease]">
+            <div className="grid gap-1.5 animate-[fadeIn_.3s_ease]">
               <span className="field-label">Fura</span>
               <select
                 value={shipmentId}
@@ -212,13 +301,92 @@ export default function KirimPage() {
                     {s.truckColor ? ` · ${s.truckColor}` : ''}
                   </option>
                 ))}
+                <option value="__new">➕ Yangi fura qo&apos;shish</option>
               </select>
-              {shipments.length === 0 && (
+
+              {/* Inline yangi fura formasi */}
+              {shipmentId === '__new' && (
+                <div className="mt-2 rounded-xl border border-brand/25 bg-brand-faint/40 p-3.5 grid gap-2.5 animate-[fadeIn_.25s_ease]">
+                  <span className="text-xs font-semibold text-brand">
+                    🚛 Yangi fura ma&apos;lumotlari
+                  </span>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <input
+                      value={fTruck}
+                      onChange={(e) => setFTruck(e.target.value)}
+                      placeholder="Fura raqami (AA777BB)"
+                      className="field-input !py-2"
+                      autoFocus
+                    />
+                    <input
+                      value={fColor}
+                      onChange={(e) => setFColor(e.target.value)}
+                      placeholder="Rang (ixtiyoriy)"
+                      className="field-input !py-2"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <input
+                      value={fOwner}
+                      onChange={(e) => setFOwner(e.target.value)}
+                      placeholder="Ega ismi"
+                      className="field-input !py-2"
+                    />
+                    <input
+                      value={fPhone}
+                      onChange={(e) => setFPhone(e.target.value)}
+                      inputMode="tel"
+                      placeholder="Telefon"
+                      className="field-input !py-2"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <input
+                      value={fTransport}
+                      onChange={(e) =>
+                        setFTransport(formatMoneyInput(e.target.value))
+                      }
+                      inputMode="numeric"
+                      placeholder="Transport (so'm)"
+                      className="field-input !py-2"
+                    />
+                    <input
+                      value={fCustoms}
+                      onChange={(e) =>
+                        setFCustoms(formatMoneyInput(e.target.value))
+                      }
+                      inputMode="numeric"
+                      placeholder="Bojxona (so'm)"
+                      className="field-input !py-2"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={addFura}
+                      disabled={addingFura}
+                      className="rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
+                    >
+                      {addingFura ? 'Qo‘shilmoqda…' : 'Furani qo‘shish'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShipmentId('')}
+                      className="rounded-xl border border-neutral-200 text-neutral-500 px-4 py-2 text-sm font-semibold hover:bg-neutral-50 transition-colors"
+                    >
+                      Bekor
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {shipments.length === 0 && shipmentId !== '__new' && (
                 <span className="text-xs text-amber-700">
-                  Avval «Furalar» bo&apos;limida fura qo&apos;shing.
+                  Fura yo&apos;q — «➕ Yangi fura qo&apos;shish»ni tanlab shu
+                  yerda qo&apos;shing.
                 </span>
               )}
-            </label>
+            </div>
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -266,16 +434,50 @@ export default function KirimPage() {
               />
             </label>
             <label className="grid gap-1.5">
-              <span className="field-label">
-                {isImport ? 'Narx / m³ (RUB)' : 'Narx / m³ (so‘m)'}
+              <span className="field-label flex items-center gap-1.5">
+                Narx /
+                <span className="inline-flex rounded-md border border-neutral-200 overflow-hidden">
+                  {(['M3', 'DONA'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setPriceMode(m)}
+                      className={`px-2 py-0.5 text-[11px] font-semibold transition-colors ${
+                        priceMode === m
+                          ? 'bg-brand text-white'
+                          : 'text-neutral-500 hover:bg-neutral-100'
+                      }`}
+                    >
+                      {m === 'M3' ? 'm³' : 'dona'}
+                    </button>
+                  ))}
+                </span>
+                <span className="text-neutral-400">
+                  ({isImport ? 'RUB' : 'so‘m'})
+                </span>
               </span>
               <input
                 value={unitPrice}
                 onChange={(e) => setUnitPrice(formatMoneyInput(e.target.value))}
                 inputMode="numeric"
-                placeholder={isImport ? '9 000' : '1 100 000'}
+                placeholder={
+                  donaMode
+                    ? isImport
+                      ? '500'
+                      : '300 000'
+                    : isImport
+                      ? '9 000'
+                      : '1 100 000'
+                }
                 className="field-input"
               />
+              {donaMode && (
+                <span className="text-[11px] text-neutral-400">
+                  {pcs > 0 && vol > 0
+                    ? `≈ ${fmt(sentUnitPrice)} ${isImport ? 'RUB' : 'so‘m'}/m³`
+                    : 'Dona sonini kiriting'}
+                </span>
+              )}
             </label>
             {isImport && (
               <label className="grid gap-1.5">
@@ -297,6 +499,104 @@ export default function KirimPage() {
                   </button>
                 )}
               </label>
+            )}
+          </div>
+
+          {/* 🪵 Yumaloq yog'och hajm kalkulyatori — Hajm (m³) ni to'ldiradi */}
+          <div className="rounded-xl border border-brand/20 bg-brand-faint/30 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowCalc((v) => !v)}
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold text-brand"
+            >
+              🪵 Yumaloq yog&apos;och hajm kalkulyatori
+              <span className="ml-auto text-xs opacity-70">
+                {showCalc ? '▲' : '▼'}
+              </span>
+            </button>
+            {showCalc && (
+              <div className="px-3.5 pb-3.5 grid gap-3">
+                {/* Shakl tanlash */}
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ['SILINDR', '🪵 Silindr'],
+                      ['KONUS', '📐 Konus'],
+                      ['TAXTA', '🟫 Taxta'],
+                    ] as const
+                  ).map(([v, lab]) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setCShape(v)}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${
+                        cShape === v
+                          ? 'border-brand bg-brand text-white'
+                          : 'border-neutral-200 text-neutral-500 hover:border-brand/40'
+                      }`}
+                    >
+                      {lab}
+                    </button>
+                  ))}
+                </div>
+
+                {/* O'lcham inputlari — shaklga qarab */}
+                <div
+                  className={`grid grid-cols-2 gap-2.5 ${
+                    cShape === 'SILINDR' ? 'sm:grid-cols-3' : 'sm:grid-cols-4'
+                  }`}
+                >
+                  {(cShape === 'SILINDR'
+                    ? ([
+                        ['Diametr ⌀ (sm)', cDiam, setCDiam, 'decimal'],
+                        ['Uzunlik (m)', cLen, setCLen, 'decimal'],
+                        ['Dona', cQty, setCQty, 'numeric'],
+                      ] as const)
+                    : cShape === 'KONUS'
+                      ? ([
+                          ['Bosh ⌀ (sm)', cBase, setCBase, 'decimal'],
+                          ['Uch ⌀ (sm)', cTop, setCTop, 'decimal'],
+                          ['Uzunlik (m)', cLen, setCLen, 'decimal'],
+                          ['Dona', cQty, setCQty, 'numeric'],
+                        ] as const)
+                      : ([
+                          ['Uzunlik (m)', cLen, setCLen, 'decimal'],
+                          ['En (m)', cW, setCW, 'decimal'],
+                          ['Qalinlik (m)', cT, setCT, 'decimal'],
+                          ['Dona', cQty, setCQty, 'numeric'],
+                        ] as const)
+                  ).map(([lab, val, set, mode]) => (
+                    <label key={lab} className="grid gap-1">
+                      <span className="field-label text-xs">{lab}</span>
+                      <input
+                        value={val}
+                        onChange={(e) =>
+                          set(
+                            mode === 'numeric'
+                              ? formatMoneyInput(e.target.value)
+                              : e.target.value,
+                          )
+                        }
+                        inputMode={mode}
+                        placeholder={lab === 'Dona' ? '100' : ''}
+                        className="field-input !py-2"
+                      />
+                    </label>
+                  ))}
+                </div>
+
+                <p className="text-xs text-neutral-600">
+                  Bir dona:{' '}
+                  <b className="tabular-nums">{calcPer.toFixed(3)}</b> m³ · Jami:{' '}
+                  <b className="tabular-nums text-brand">
+                    {calcTotal.toFixed(3)}
+                  </b>{' '}
+                  m³ —{' '}
+                  <span className="text-emerald-600 font-medium">
+                    Hajm avtomatik to&apos;ldirildi ✓
+                  </span>
+                </p>
+              </div>
             )}
           </div>
 

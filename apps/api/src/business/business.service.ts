@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   BusinessView,
@@ -35,7 +36,14 @@ type BillingRow = {
 
 @Injectable()
 export class BusinessService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  private static som(n: number): string {
+    return `${new Intl.NumberFormat('uz-UZ').format(n)} so'm`;
+  }
 
   /** Obuna bloklanganmi: ACTIVE biznes, tekin ruxsat yo'q, muddat o'tgan. */
   private static isBlocked(b: BillingRow): boolean {
@@ -152,6 +160,23 @@ export class BusinessService {
         );
       }
     });
+
+    await this.notifications.notify(
+      request.userId,
+      input.approve
+        ? {
+            type: 'OWNER_DECIDED',
+            title: 'Biznesingiz tasdiqlandi ✓',
+            body: `"${request.business.name}" faollashtirildi — endi kirishingiz mumkin.`,
+            link: '/dashboard',
+          }
+        : {
+            type: 'OWNER_DECIDED',
+            title: "Biznes so'rovi rad etildi",
+            body: `"${request.business.name}" so'rovi rad etildi.`,
+            link: '/',
+          },
+    );
 
     return {
       id: request.id,
@@ -437,6 +462,7 @@ export class BusinessService {
         rem._count.joinRequests === 0 &&
         rem._count.decidedRequests === 0
       ) {
+        await tx.notification.deleteMany({ where: { userId: ownerId } });
         await tx.user.delete({ where: { id: ownerId } });
       }
     });
@@ -617,6 +643,12 @@ export class BusinessService {
         receiptUrl: input.receiptUrl ?? null,
       },
     });
+    await this.notifications.notifyCeos({
+      type: 'PAYMENT_SUBMITTED',
+      title: `Yangi to'lov: ${business.name}`,
+      body: `${BusinessService.som(input.amountUzs)} · ${input.months} oy`,
+      link: '/ceo/tolovlar',
+    });
     return this.toPaymentGql(p, business.name);
   }
 
@@ -686,6 +718,23 @@ export class BusinessService {
       return u;
     });
 
+    await this.notifications.notify(
+      payment.business.ownerId,
+      input.approve
+        ? {
+            type: 'PAYMENT_DECIDED',
+            title: "To'lovingiz tasdiqlandi ✓",
+            body: `Obuna ${payment.months} oyga uzaytirildi.`,
+            link: '/obuna',
+          }
+        : {
+            type: 'PAYMENT_DECIDED',
+            title: "To'lovingiz rad etildi",
+            body: 'Qayta urinib ko\'ring yoki CEO bilan bog\'laning.',
+            link: '/obuna',
+          },
+    );
+
     return this.toPaymentGql(
       updated,
       payment.business.name,
@@ -703,6 +752,16 @@ export class BusinessService {
       where: { id: input.businessId },
       data: { freeAccess: input.freeAccess },
       include: { owner: true, _count: { select: { workspaces: true } } },
+    });
+    await this.notifications.notify(business.ownerId, {
+      type: 'FREE_ACCESS',
+      title: input.freeAccess
+        ? 'Sizga tekin ruxsat berildi 🎁'
+        : 'Tekin ruxsat olib tashlandi',
+      body: input.freeAccess
+        ? "Platformadan to'lovsiz foydalanishingiz mumkin."
+        : "Davom etish uchun obuna to'lovi kerak bo'ladi.",
+      link: '/obuna',
     });
     return {
       userId: business.ownerId,
@@ -796,6 +855,23 @@ export class BusinessService {
         }
       }
     });
+
+    await this.notifications.notify(
+      request.userId,
+      input.approve
+        ? {
+            type: 'WORKER_DECIDED',
+            title: 'Ishga qabul qilindingiz ✓',
+            body: `"${business.name}" biznesiga ishchi sifatida qo'shildingiz.`,
+            link: '/dashboard',
+          }
+        : {
+            type: 'WORKER_DECIDED',
+            title: "Kirish so'rovi rad etildi",
+            body: `"${business.name}" so'rovingizni rad etdi.`,
+            link: '/',
+          },
+    );
 
     return {
       id: request.id,

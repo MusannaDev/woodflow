@@ -143,8 +143,26 @@ model User {
   joinRequests JoinRequest[] @relation("Requester")
   decidedRequests JoinRequest[] @relation("Decider")
   employeeLinks Employee[]
+  notifications Notification[]
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+}
+
+// Ilova ichidagi bildirishnomalar — rolga bog'langan, o'qilgan/o'qilmagan.
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // OWNER_REQUEST | PAYMENT_SUBMITTED | PAYMENT_DECIDED | SALARY_PAID ...
+  title     String
+  body      String?
+  link      String? // bosilganda o'tadigan sahifa
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
 }
 
 // Biznes — owner'ning brendi: nom + logo. Ikkala workspace shu ostida.
@@ -407,9 +425,11 @@ model SaleItem {
   finishedLotId String? // tayyor mahsulot lot (Taxta) — dona savdosi
   quantity      Int // dona soni
   length        Decimal? @db.Decimal(8, 3) // m (tayyor mahsulotda null)
-  width         Decimal? @db.Decimal(8, 3) // m
-  thickness     Decimal? @db.Decimal(8, 3) // m
-  volumeM3      Decimal  @db.Decimal(12, 4) // = L×W×T×qty (tayyorda 0)
+  width         Decimal? @db.Decimal(8, 3) // m (taxta eni)
+  thickness     Decimal? @db.Decimal(8, 3) // m (taxta qalinligi)
+  baseDiamCm    Decimal? @db.Decimal(6, 2) // yumaloq yog'och bosh diametri (sm)
+  topDiamCm     Decimal? @db.Decimal(6, 2) // yumaloq yog'och uch diametri (sm)
+  volumeM3      Decimal  @db.Decimal(12, 4) // kub: L×W×T×qty; yumaloq: frustum×qty
   unitPriceUzs  Decimal  @db.Decimal(18, 2)
   lineTotalUzs  Decimal  @db.Decimal(18, 2)
 

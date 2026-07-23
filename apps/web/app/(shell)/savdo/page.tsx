@@ -14,6 +14,7 @@ import {
   parseMoney,
   parseQty,
 } from '../../../lib/format';
+import { roundLogVolumeM3 } from '../../../lib/wood';
 import { session } from '../../../lib/session';
 
 /**
@@ -90,9 +91,14 @@ export default function SavdoPage() {
   const [saleType, setSaleType] =
     useState<(typeof SALE_TYPES)[number]['value']>('PER_PIECE');
   const [lotId, setLotId] = useState('');
+  // Yog'och shakli: SILINDR (ikki uch teng) · KONUS (ingichkalanadi) · BOX (taxta)
+  const [shape, setShape] = useState<'SILINDR' | 'KONUS' | 'BOX'>('SILINDR');
   const [length, setLength] = useState('6');
   const [width, setWidth] = useState('0.2');
   const [thickness, setThickness] = useState('0.05');
+  const [diam, setDiam] = useState('28'); // silindr diametri, sm
+  const [baseDiam, setBaseDiam] = useState('30'); // konus bosh ⌀, sm
+  const [topDiam, setTopDiam] = useState('24'); // konus uch ⌀, sm
   const [quantity, setQuantity] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
 
@@ -120,10 +126,23 @@ export default function SavdoPage() {
   const L = parseDecimal(length);
   const W = parseDecimal(width);
   const T = parseDecimal(thickness);
+  const dm = parseDecimal(diam);
+  const bd = parseDecimal(baseDiam);
+  const td = parseDecimal(topDiam);
   const qty = parseQty(quantity);
   const price = parseMoney(unitPrice);
+  const isKonus = !isLumber && shape === 'KONUS';
+  const isSilindr = !isLumber && shape === 'SILINDR';
+  const isRound = isKonus || isSilindr;
+  // Silindr = konus formulasiда ikkala diametr teng
+  const sendBase = isKonus ? bd : dm;
+  const sendTop = isKonus ? td : dm;
 
-  const volPerPiece = isLumber ? 0 : L * W * T;
+  const volPerPiece = isLumber
+    ? 0
+    : isRound
+      ? roundLogVolumeM3(sendBase, sendTop, L)
+      : L * W * T;
   const totalVol = volPerPiece * qty;
   const totalSum = perPiece ? qty * price : totalVol * price;
 
@@ -195,14 +214,23 @@ export default function SavdoPage() {
                     quantity: qty,
                     unitPriceUzs: price,
                   }
-                : {
-                    lotId,
-                    quantity: qty,
-                    length: L,
-                    width: W,
-                    thickness: T,
-                    unitPriceUzs: price,
-                  },
+                : isRound
+                  ? {
+                      lotId,
+                      quantity: qty,
+                      length: L,
+                      baseDiamCm: sendBase,
+                      topDiamCm: sendTop,
+                      unitPriceUzs: price,
+                    }
+                  : {
+                      lotId,
+                      quantity: qty,
+                      length: L,
+                      width: W,
+                      thickness: T,
+                      unitPriceUzs: price,
+                    },
             ],
           },
         },
@@ -381,25 +409,120 @@ export default function SavdoPage() {
               <legend className="field-label text-brand font-semibold mb-1.5">
                 O&apos;LCHAM (avtomatik m³ ga aylanadi)
               </legend>
-              <div className="grid grid-cols-3 gap-3">
+
+              {/* Shakl: silindr · konus · taxta */}
+              <div className="grid grid-cols-3 gap-2">
                 {(
                   [
-                    ['Uzunlik (m)', length, setLength],
-                    ['En (m)', width, setWidth],
-                    ['Qalinlik (m)', thickness, setThickness],
+                    {
+                      value: 'SILINDR',
+                      icon: '🪵',
+                      title: 'Silindr',
+                      desc: 'Ikki uch teng',
+                    },
+                    {
+                      value: 'KONUS',
+                      icon: '📐',
+                      title: 'Konus',
+                      desc: 'Ingichkalanadi',
+                    },
+                    {
+                      value: 'BOX',
+                      icon: '🟫',
+                      title: 'Taxta',
+                      desc: 'En × qalinlik',
+                    },
                   ] as const
-                ).map(([lab, val, set]) => (
-                  <label key={lab} className="grid gap-1.5">
-                    <span className="field-label text-xs">{lab}</span>
-                    <input
-                      value={val}
-                      onChange={(e) => set(e.target.value)}
-                      inputMode="decimal"
-                      className="field-input"
-                    />
-                  </label>
+                ).map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setShape(s.value)}
+                    className={`text-left rounded-xl border-2 px-3 py-2 transition-all ${
+                      shape === s.value
+                        ? 'border-brand bg-brand-faint'
+                        : 'border-neutral-200 bg-white/70 hover:border-brand/40'
+                    }`}
+                  >
+                    <span className="text-base">{s.icon}</span>
+                    <span className="block font-semibold text-sm">{s.title}</span>
+                    <span className="block text-[11px] text-neutral-500">
+                      {s.desc}
+                    </span>
+                  </button>
                 ))}
               </div>
+
+              {isSilindr && (
+                <div className="grid grid-cols-2 gap-3">
+                  {(
+                    [
+                      ['Diametr ⌀ (sm)', diam, setDiam],
+                      ['Uzunlik (m)', length, setLength],
+                    ] as const
+                  ).map(([lab, val, set]) => (
+                    <label key={lab} className="grid gap-1.5">
+                      <span className="field-label text-xs">{lab}</span>
+                      <input
+                        value={val}
+                        onChange={(e) => set(e.target.value)}
+                        inputMode="decimal"
+                        className="field-input"
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+              {isKonus && (
+                <div className="grid grid-cols-3 gap-3">
+                  {(
+                    [
+                      ['Bosh ⌀ (sm)', baseDiam, setBaseDiam],
+                      ['Uch ⌀ (sm)', topDiam, setTopDiam],
+                      ['Uzunlik (m)', length, setLength],
+                    ] as const
+                  ).map(([lab, val, set]) => (
+                    <label key={lab} className="grid gap-1.5">
+                      <span className="field-label text-xs">{lab}</span>
+                      <input
+                        value={val}
+                        onChange={(e) => set(e.target.value)}
+                        inputMode="decimal"
+                        className="field-input"
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+              {shape === 'BOX' && (
+                <div className="grid grid-cols-3 gap-3">
+                  {(
+                    [
+                      ['Uzunlik (m)', length, setLength],
+                      ['En (m)', width, setWidth],
+                      ['Qalinlik (m)', thickness, setThickness],
+                    ] as const
+                  ).map(([lab, val, set]) => (
+                    <label key={lab} className="grid gap-1.5">
+                      <span className="field-label text-xs">{lab}</span>
+                      <input
+                        value={val}
+                        onChange={(e) => set(e.target.value)}
+                        inputMode="decimal"
+                        className="field-input"
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+              {isRound && (
+                <p className="text-[11px] text-neutral-400">
+                  Bir dona ≈ {volPerPiece.toFixed(3)} m³ ·{' '}
+                  {isSilindr
+                    ? 'ikki uchi bir xil yo‘g‘onlik (silindr).'
+                    : 'bosh yo‘g‘on, uch ingichka (kesik konus).'}
+                </p>
+              )}
             </fieldset>
           )}
 

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { LotStatus, Prisma } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   DefectRecord,
@@ -22,7 +23,10 @@ type LotRow = {
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async listLots(workspaceId: string): Promise<InventoryLot[]> {
     const rows = await this.prisma.client.inventoryLot.findMany({
@@ -66,10 +70,16 @@ export class InventoryService {
   async recordDefect(
     workspaceId: string,
     input: RecordDefectInput,
+    userId?: string,
   ): Promise<DefectRecord> {
     const lot = await this.prisma.client.inventoryLot.findFirst({
       where: { id: input.lotId, workspaceId },
-      select: { id: true, volumeM3Remaining: true, quantityRemaining: true },
+      select: {
+        id: true,
+        woodType: true,
+        volumeM3Remaining: true,
+        quantityRemaining: true,
+      },
     });
     if (!lot) {
       throw new NotFoundException('Lot topilmadi.');
@@ -114,6 +124,18 @@ export class InventoryService {
         },
       }),
     ]);
+
+    if (userId) {
+      const vol = new Intl.NumberFormat('uz-UZ', {
+        maximumFractionDigits: 1,
+      }).format(defect.volumeM3.toNumber());
+      await this.notifications.notifyWorkspaceOwner(workspaceId, userId, {
+        type: 'DEFECT',
+        title: `Nuqson belgilandi: ${vol} m³ ${lot.woodType}`,
+        body: input.reason ? `Sabab: ${input.reason}` : null,
+        link: '/ombor',
+      });
+    }
 
     return {
       id: defect.id,

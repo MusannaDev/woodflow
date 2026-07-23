@@ -48,8 +48,14 @@ export class SaleItem {
   @Field(() => Float, { nullable: true })
   thickness!: number | null;
 
+  @Field(() => Float, { nullable: true })
+  baseDiamCm!: number | null; // yumaloq yog'och bosh diametri (sm)
+
+  @Field(() => Float, { nullable: true })
+  topDiamCm!: number | null; // yumaloq yog'och uch diametri (sm)
+
   @Field(() => Float)
-  volumeM3!: number; // avto: L×W×T×qty (tayyor mahsulotda 0)
+  volumeM3!: number; // kub: L×W×T×qty; yumaloq: frustum×qty
 
   @Field(() => Float)
   unitPriceUzs!: number;
@@ -151,6 +157,20 @@ export class SaleItemInput {
   @IsNumber()
   @IsPositive()
   thickness?: number;
+
+  /** Yumaloq yog'och bosh (yo'g'on) diametri, sm — berilса frustum hisob. */
+  @Field(() => Float, { nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  baseDiamCm?: number;
+
+  /** Yumaloq yog'och uch (ingichka) diametri, sm. */
+  @Field(() => Float, { nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  topDiamCm?: number;
 
   /** PER_PIECE/tayyor — dona narxi; PER_CUBE/WHOLESALE — m³ narxi (so'm). */
   @Field(() => Float)

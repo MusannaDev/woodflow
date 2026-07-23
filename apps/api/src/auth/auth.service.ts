@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthPayload, LoginInput, RegisterInput } from './dto/auth.types';
 
@@ -14,6 +15,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async login(input: LoginInput): Promise<AuthPayload> {
@@ -50,6 +52,10 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(input.password, 10);
 
+    // Transaksiyadan keyingi bildirishnomalar uchun kontekst
+    let ceoNotifyName: string | null = null;
+    let workerOwnerId: string | null = null;
+
     const user = await this.prisma.raw.$transaction(async (tx) => {
       const u = await tx.user.create({
         data: { name: input.name, phone: input.phone, passwordHash },
@@ -67,6 +73,7 @@ export class AuthService {
         await tx.joinRequest.create({
           data: { type: 'OWNER_SIGNUP', userId: u.id, businessId: business.id },
         });
+        ceoNotifyName = business.name;
       } else {
         // WORKER: telefon bo'yicha bog'lanmagan ishchi yozuvini qidiramiz
         const employee = await tx.employee.findFirst({
@@ -81,11 +88,33 @@ export class AuthService {
               employeeId: employee.id,
             },
           });
+          const biz = await tx.business.findUnique({
+            where: { id: employee.businessId },
+            select: { ownerId: true },
+          });
+          workerOwnerId = biz?.ownerId ?? null;
         }
         // topilmasa — WAITING_EMPLOYEE holati (buildPayload hisoblaydi)
       }
       return u;
     });
+
+    if (ceoNotifyName) {
+      await this.notifications.notifyCeos({
+        type: 'OWNER_REQUEST',
+        title: `Yangi biznes so'rovi: ${ceoNotifyName}`,
+        body: `${input.name} · ${input.phone}`,
+        link: '/ceo/sorovlar',
+      });
+    }
+    if (workerOwnerId) {
+      await this.notifications.notify(workerOwnerId, {
+        type: 'WORKER_REQUEST',
+        title: `Yangi ishchi so'rovi: ${input.name}`,
+        body: `${input.phone} kirishni so'ramoqda.`,
+        link: '/ishchilar',
+      });
+    }
 
     return this.buildPayload(user.id);
   }

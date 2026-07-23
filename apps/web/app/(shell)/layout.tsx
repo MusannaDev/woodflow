@@ -3,6 +3,7 @@
 import { useQuery } from '@apollo/client';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
+import { NotificationBell } from '../../components/NotificationBell';
 import {
   PENDING_PLATFORM_PAYMENTS,
   PLATFORM_STATS,
@@ -315,6 +316,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
             Onlayn
           </span>
+          <NotificationBell />
           <button
             onClick={logout}
             className="text-xs font-semibold text-neutral-500 hover:text-red-600 border border-neutral-200 hover:border-red-200 rounded-lg px-3 py-1.5 transition-colors"
@@ -356,6 +358,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
               </div>
             )}
           </div>
+          <NotificationBell />
           <button
             onClick={logout}
             aria-label="Chiqish"
@@ -594,12 +597,15 @@ function CeoShell({
               />
               <span className="truncate text-sm">RS · CEO</span>
             </span>
-            <button
-              onClick={onLogout}
-              className="ml-auto text-[11px] font-semibold text-neutral-500 hover:text-red-600 border border-neutral-200 rounded-lg px-2 py-1.5 flex-none"
-            >
-              Chiqish
-            </button>
+            <div className="ml-auto flex items-center gap-2">
+              <NotificationBell />
+              <button
+                onClick={onLogout}
+                className="text-[11px] font-semibold text-neutral-500 hover:text-red-600 border border-neutral-200 rounded-lg px-2 py-1.5 flex-none"
+              >
+                Chiqish
+              </button>
+            </div>
           </div>
           <div className="flex gap-1.5 overflow-x-auto mt-2 -mx-1 px-1">
             {CEO_NAV.map((m) => (
@@ -624,6 +630,16 @@ function CeoShell({
           </div>
         </header>
 
+        <header className="hidden md:flex glass rounded-2xl mx-6 mt-3 px-5 py-3 items-center gap-3 sticky top-3 z-30">
+          <span className="text-sm font-semibold flex items-center gap-2">
+            <span className="text-amber-500">⭑</span> CEO Panel
+          </span>
+          <span className="ml-auto text-xs text-emerald-600 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+            Onlayn
+          </span>
+          <NotificationBell />
+        </header>
         <main className="p-4 sm:p-6 animate-[fadeIn_.35s_ease] max-w-5xl w-full mx-auto">
           {children}
         </main>

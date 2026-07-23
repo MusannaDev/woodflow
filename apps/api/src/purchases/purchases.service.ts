@@ -5,6 +5,7 @@ import {
   SupportedCurrency,
   unitCostPerM3,
 } from '../common/money/currency.util';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePurchaseInput, Purchase } from './dto/purchase.types';
 
@@ -27,7 +28,10 @@ type PurchaseRow = {
 
 @Injectable()
 export class PurchasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async list(workspaceId: string): Promise<Purchase[]> {
     const rows = await this.prisma.client.purchase.findMany({
@@ -46,6 +50,7 @@ export class PurchasesService {
   async create(
     workspaceId: string,
     input: CreatePurchaseInput,
+    userId?: string,
   ): Promise<Purchase> {
     const exchangeRate = await this.resolveAndValidate(workspaceId, input);
 
@@ -86,6 +91,19 @@ export class PurchasesService {
         },
       },
     });
+
+    if (userId) {
+      const vol = new Intl.NumberFormat('uz-UZ', {
+        maximumFractionDigits: 1,
+      }).format(input.volumeM3);
+      await this.notifications.notifyWorkspaceOwner(workspaceId, userId, {
+        type: 'PURCHASE',
+        title: `Yangi kirim: ${vol} m³ ${input.woodType}`,
+        body: `${input.grade} · ${NotificationsService.som(Number(totalCostUzs))}`,
+        link: '/kirim',
+      });
+    }
+
     return PurchasesService.toGql(row);
   }
 

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateEmployeeInput,
@@ -14,7 +15,10 @@ import {
  */
 @Injectable()
 export class EmployeesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async list(workspaceId: string): Promise<Employee[]> {
     const rows = await this.prisma.raw.employee.findMany({
@@ -120,6 +124,16 @@ export class EmployeesService {
       return p;
     });
 
+    // Ishchi hisobi bog'langan bo'lsa — unga bildirishnoma
+    if (employee.userId) {
+      await this.notifications.notify(employee.userId, {
+        type: 'SALARY_PAID',
+        title: "Sizga oylik to'landi",
+        body: `${new Intl.NumberFormat('uz-UZ').format(input.amountUzs)} so'm (${input.period}) — qabul qildingizmi?`,
+        link: '/oylik',
+      });
+    }
+
     return EmployeesService.toSalaryGql(payment, employee.name);
   }
 
@@ -140,7 +154,15 @@ export class EmployeesService {
   ): Promise<SalaryPayment> {
     const payment = await this.prisma.raw.salaryPayment.findUnique({
       where: { id: paymentId },
-      include: { employee: { select: { name: true, userId: true } } },
+      include: {
+        employee: {
+          select: {
+            name: true,
+            userId: true,
+            business: { select: { ownerId: true } },
+          },
+        },
+      },
     });
     if (!payment || payment.employee.userId !== userId) {
       throw new NotFoundException('Oylik yozuvi topilmadi.');
@@ -152,6 +174,17 @@ export class EmployeesService {
       where: { id: paymentId },
       data: { status: 'CONFIRMED', confirmedAt: new Date() },
     });
+
+    const ownerId = payment.employee.business?.ownerId;
+    if (ownerId) {
+      await this.notifications.notify(ownerId, {
+        type: 'SALARY_CONFIRMED',
+        title: 'Oylik tasdiqlandi ✓',
+        body: `${payment.employee.name} oylikni qabul qildi.`,
+        link: '/oylik',
+      });
+    }
+
     return EmployeesService.toSalaryGql(updated, payment.employee.name);
   }
 

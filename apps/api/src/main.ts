@@ -1,9 +1,15 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { webcrypto } from 'node:crypto';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { AppModule } from './app.module';
+
+// Node 18: @nestjs/schedule global `crypto` kutadi — polyfill
+if (!(globalThis as { crypto?: unknown }).crypto) {
+  (globalThis as { crypto?: unknown }).crypto = webcrypto;
+}
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);

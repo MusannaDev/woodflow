@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { Decimal } from 'decimal.js';
 import { getTenant } from '../common/tenant/tenant-context';
 import { unitCostPerM3 } from '../common/money/currency.util';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransferInput, StockTransfer } from './dto/transfer.types';
 
@@ -33,7 +34,10 @@ type TransferRow = {
  */
 @Injectable()
 export class TransfersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Joriy workspace ishtirok etgan transferlar (chiqqan + kirgan). */
   async list(workspaceId: string): Promise<StockTransfer[]> {
@@ -72,6 +76,7 @@ export class TransfersService {
     const totalPrice = new Decimal(input.internalPriceUzs);
     const unitCost = unitCostPerM3(totalPrice, volume);
     const date = input.date ?? new Date();
+    let woodType = '';
 
     const row = await this.prisma.raw.$transaction(async (tx) => {
       // 1) Manba lot — joriy workspace'niki, qoldiq yetarli
@@ -82,6 +87,7 @@ export class TransfersService {
       if (!lot) {
         throw new NotFoundException('Manba lot topilmadi.');
       }
+      woodType = lot.woodType;
       if (volume.greaterThan(lot.volumeM3Remaining.toString())) {
         throw new BadRequestException(
           `Omborda yetarli emas: so‘ralgan ${volume} m³, qoldiq ${lot.volumeM3Remaining} m³.`,
@@ -176,6 +182,18 @@ export class TransfersService {
 
       return transfer;
     });
+
+    if (userId) {
+      const vol = new Intl.NumberFormat('uz-UZ', {
+        maximumFractionDigits: 1,
+      }).format(Number(volume.toString()));
+      await this.notifications.notifyWorkspaceOwner(fromWorkspaceId, userId, {
+        type: 'TRANSFER',
+        title: `Ichki transfer: ${vol} m³ ${woodType}`,
+        body: NotificationsService.som(Number(totalPrice.toString())),
+        link: '/transfer',
+      });
+    }
 
     return TransfersService.toGql(row);
   }

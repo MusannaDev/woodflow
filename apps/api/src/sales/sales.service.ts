@@ -7,7 +7,11 @@ import { Currency, Prisma, SaleType } from '@prisma/client';
 import { Decimal } from 'decimal.js';
 import { toUzs } from '../common/money/currency.util';
 import { saleLineTotal } from '../common/money/pnl.util';
-import { totalVolumeM3 } from '../common/money/uom.util';
+import {
+  totalRoundLogVolumeM3,
+  totalVolumeM3,
+} from '../common/money/uom.util';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AddPaymentInput,
@@ -16,13 +20,18 @@ import {
   Sale,
 } from './dto/sale.types';
 
+const LOW_STOCK_M3 = 5; // shu qoldiqdan pastga tushса ogohlantirish
+
 type SaleRow = Prisma.SaleGetPayload<{
   include: { items: true; payments: true };
 }>;
 
 @Injectable()
 export class SalesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async list(workspaceId: string): Promise<Sale[]> {
     const rows = await this.prisma.raw.sale.findMany({
@@ -52,8 +61,13 @@ export class SalesService {
    *  4) Sale + SaleItem'larni yozadi
    * Bittasi yiqilsa — hammasi qaytadi (yarim savdo qolmaydi).
    */
-  async create(workspaceId: string, input: CreateSaleInput): Promise<Sale> {
+  async create(
+    workspaceId: string,
+    input: CreateSaleInput,
+    userId?: string,
+  ): Promise<Sale> {
     const perPiece = input.saleType === SaleType.PER_PIECE;
+    const lowStock: { woodType: string; remaining: number }[] = [];
 
     const row = await this.prisma.raw.$transaction(async (tx) => {
       let totalPriceUzs = new Decimal(0);
@@ -100,28 +114,45 @@ export class SalesService {
         if (!item.lotId) {
           throw new BadRequestException('lotId yoki finishedLotId kerak.');
         }
+        // Yumaloq yog'och (bosh+uch diametri) yoki kub (en+qalinlik)
+        const isRound = item.baseDiamCm != null && item.topDiamCm != null;
         if (
           item.length == null ||
-          item.width == null ||
-          item.thickness == null
+          (!isRound && (item.width == null || item.thickness == null))
         ) {
           throw new BadRequestException(
-            'Xomashyo savdosida o‘lcham (uzunlik/en/qalinlik) majburiy.',
+            'Xomashyo savdosida uzunlik + (en va qalinlik) yoki (bosh va uch diametri) majburiy.',
           );
         }
 
         const lot = await tx.inventoryLot.findFirst({
           where: { id: item.lotId, workspaceId },
-          select: { id: true, volumeM3Remaining: true, quantityRemaining: true },
+          select: {
+            id: true,
+            woodType: true,
+            volumeM3Remaining: true,
+            quantityRemaining: true,
+          },
         });
         if (!lot) {
           throw new NotFoundException(`Lot topilmadi: ${item.lotId}`);
         }
 
-        const volumeM3 = totalVolumeM3(
-          { length: item.length, width: item.width, thickness: item.thickness },
-          item.quantity,
-        );
+        const volumeM3 = isRound
+          ? totalRoundLogVolumeM3(
+              item.baseDiamCm!,
+              item.topDiamCm!,
+              item.length!,
+              item.quantity,
+            )
+          : totalVolumeM3(
+              {
+                length: item.length!,
+                width: item.width!,
+                thickness: item.thickness!,
+              },
+              item.quantity,
+            );
         if (volumeM3.greaterThan(lot.volumeM3Remaining.toString())) {
           throw new BadRequestException(
             `Omborda yetarli emas: so‘ralgan ${volumeM3} m³, qoldiq ${lot.volumeM3Remaining} m³ (lot ${lot.id}).`,
@@ -157,12 +188,21 @@ export class SalesService {
           },
         });
 
+        // Kam qoldiq — chegaradan pastga tushса (bir marta) belgilaymiz
+        const before = Number(lot.volumeM3Remaining);
+        const after = before - Number(volumeM3.toString());
+        if (before >= LOW_STOCK_M3 && after < LOW_STOCK_M3 && after >= 0) {
+          lowStock.push({ woodType: lot.woodType, remaining: after });
+        }
+
         itemsData.push({
           lot: { connect: { id: lot.id } },
           quantity: item.quantity,
-          length: new Prisma.Decimal(item.length),
-          width: new Prisma.Decimal(item.width),
-          thickness: new Prisma.Decimal(item.thickness),
+          length: new Prisma.Decimal(item.length!),
+          width: isRound ? null : new Prisma.Decimal(item.width!),
+          thickness: isRound ? null : new Prisma.Decimal(item.thickness!),
+          baseDiamCm: isRound ? new Prisma.Decimal(item.baseDiamCm!) : null,
+          topDiamCm: isRound ? new Prisma.Decimal(item.topDiamCm!) : null,
           volumeM3: new Prisma.Decimal(volumeM3.toString()),
           unitPriceUzs: new Prisma.Decimal(item.unitPriceUzs),
           lineTotalUzs: new Prisma.Decimal(lineTotal.toString()),
@@ -181,6 +221,33 @@ export class SalesService {
         include: { items: true, payments: true },
       });
     });
+
+    // ── Bildirishnomalar (owner'ga, ishchi sotган bo'lsa) ──
+    if (userId) {
+      const total = Number(row.totalPriceUzs);
+      let customerName: string | null = null;
+      if (row.customerId) {
+        const c = await this.prisma.raw.customer.findUnique({
+          where: { id: row.customerId },
+          select: { name: true },
+        });
+        customerName = c?.name ?? null;
+      }
+      await this.notifications.notifyWorkspaceOwner(workspaceId, userId, {
+        type: 'SALE',
+        title: `Yangi savdo: ${NotificationsService.som(total)}`,
+        body: customerName ? `Mijoz: ${customerName}` : null,
+        link: '/savdo',
+      });
+      for (const ls of lowStock) {
+        await this.notifications.notifyWorkspaceOwner(workspaceId, userId, {
+          type: 'LOW_STOCK',
+          title: `Ombor kam qoldi: ${ls.woodType}`,
+          body: `${new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 1 }).format(ls.remaining)} m³ qoldi.`,
+          link: '/ombor',
+        });
+      }
+    }
 
     return SalesService.toGql(row);
   }
@@ -266,6 +333,8 @@ export class SalesService {
         length: i.length?.toNumber() ?? null,
         width: i.width?.toNumber() ?? null,
         thickness: i.thickness?.toNumber() ?? null,
+        baseDiamCm: i.baseDiamCm?.toNumber() ?? null,
+        topDiamCm: i.topDiamCm?.toNumber() ?? null,
         volumeM3: i.volumeM3.toNumber(),
         unitPriceUzs: i.unitPriceUzs.toNumber(),
         lineTotalUzs: i.lineTotalUzs.toNumber(),

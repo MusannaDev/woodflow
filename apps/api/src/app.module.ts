@@ -3,9 +3,11 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
+import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { BusinessModule } from './business/business.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { GqlAuthGuard } from './common/guards/gql-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { CustomersModule } from './customers/customers.module';
@@ -25,6 +27,8 @@ import { TransfersModule } from './transfers/transfers.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
+    NotificationsModule,
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),

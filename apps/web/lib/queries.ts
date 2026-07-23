@@ -41,6 +41,38 @@ export const MY_AUTH = gql`
   }
 `;
 
+export const UNREAD_COUNT = gql`
+  query UnreadCount {
+    unreadCount
+  }
+`;
+
+export const MY_NOTIFICATIONS = gql`
+  query MyNotifications {
+    myNotifications {
+      id
+      type
+      title
+      body
+      link
+      read
+      createdAt
+    }
+  }
+`;
+
+export const MARK_NOTIFICATION_READ = gql`
+  mutation MarkNotificationRead($id: String!) {
+    markNotificationRead(id: $id)
+  }
+`;
+
+export const MARK_ALL_NOTIFICATIONS_READ = gql`
+  mutation MarkAllNotificationsRead {
+    markAllNotificationsRead
+  }
+`;
+
 export const PENDING_OWNER_REQUESTS = gql`
   query PendingOwnerRequests {
     pendingOwnerRequests {

@@ -299,6 +299,8 @@ type Mutation {
   deleteOwner(businessId: String!): Boolean!
   grantFreeAccess(input: GrantAccessInput!): OwnerView!
   login(input: LoginInput!): AuthPayload!
+  markAllNotificationsRead: Boolean!
+  markNotificationRead(id: String!): Boolean!
   paySalary(input: PaySalaryInput!): SalaryPayment!
   recordDefect(input: RecordDefectInput!): DefectRecord!
   register(input: RegisterInput!): AuthPayload!
@@ -314,6 +316,16 @@ type MyBillingView {
   paidUntil: DateTime
   payments: [PlatformPaymentView!]!
   status: String!
+}
+
+type NotificationView {
+  body: String
+  createdAt: DateTime!
+  id: String!
+  link: String
+  read: Boolean!
+  title: String!
+  type: String!
 }
 
 type OwnerDetailView {
@@ -456,6 +468,7 @@ type Query {
   myAuth: AuthPayload!
   myBilling: MyBillingView!
   myBusiness: BusinessView!
+  myNotifications: [NotificationView!]!
   mySalaries: [SalaryPayment!]!
   ownerDetail(businessId: String!): OwnerDetailView!
   owners: [OwnerView!]!
@@ -474,6 +487,7 @@ type Query {
   shipments: [Shipment!]!
   suppliers: [Supplier!]!
   transfers: [StockTransfer!]!
+  unreadCount: Int!
   userDetail(userId: String!): UserDetailView!
 }
 
@@ -525,6 +539,7 @@ type Sale {
 }
 
 type SaleItem {
+  baseDiamCm: Float
   finishedLotId: String
   id: String!
   length: Float
@@ -532,17 +547,20 @@ type SaleItem {
   lotId: String
   quantity: Int!
   thickness: Float
+  topDiamCm: Float
   unitPriceUzs: Float!
   volumeM3: Float!
   width: Float
 }
 
 input SaleItemInput {
+  baseDiamCm: Float
   finishedLotId: String
   length: Float
   lotId: String
   quantity: Int!
   thickness: Float
+  topDiamCm: Float
   unitPriceUzs: Float!
   width: Float
 }

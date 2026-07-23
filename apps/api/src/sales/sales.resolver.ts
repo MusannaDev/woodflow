@@ -1,5 +1,9 @@
 import { UseGuards, UseInterceptors } from '@nestjs/common';
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import {
+  AuthUser,
+  CurrentUser,
+} from '../common/decorators/current-user.decorator';
 import { CurrentWorkspace } from '../common/decorators/current-workspace.decorator';
 import { GqlAuthGuard } from '../common/guards/gql-auth.guard';
 import { WorkspaceGuard } from '../common/guards/workspace.guard';
@@ -34,9 +38,10 @@ export class SalesResolver {
   @Mutation(() => Sale)
   createSale(
     @CurrentWorkspace() workspaceId: string,
+    @CurrentUser() user: AuthUser,
     @Args('input') input: CreateSaleInput,
   ): Promise<Sale> {
-    return this.salesService.create(workspaceId, input);
+    return this.salesService.create(workspaceId, input, user.userId);
   }
 
   @Mutation(() => Payment)

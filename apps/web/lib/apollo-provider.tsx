@@ -6,6 +6,7 @@ import {
   createHttpLink,
   InMemoryCache,
 } from '@apollo/client';
+import { onError } from '@apollo/client/link/error';
 import { setContext } from '@apollo/client/link/context';
 import { ReactNode, useMemo } from 'react';
 import { session } from './session';
@@ -29,8 +30,20 @@ export function WoodflowApolloProvider({ children }: { children: ReactNode }) {
       };
     });
 
+    const errorLink = onError(({ graphQLErrors }) => {
+      const unauthenticated = graphQLErrors?.some(
+        (err) => err.extensions?.code === 'UNAUTHENTICATED'
+      );
+      if (!unauthenticated || typeof window === 'undefined') return;
+
+      session.clear();
+      if (window.location.pathname !== '/login') {
+        window.location.replace('/login');
+      }
+    });
+
     return new ApolloClient({
-      link: authLink.concat(httpLink),
+      link: errorLink.concat(authLink).concat(httpLink),
       cache: new InMemoryCache(),
     });
   }, []);

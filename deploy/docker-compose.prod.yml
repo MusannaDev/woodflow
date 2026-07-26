@@ -1,0 +1,63 @@
+# ============================================================
+#  RS Development (yog'och) — PRODUCTION stack
+#  Fitnes ilovasiga TEGMAYDI: alohida DB, alohida volume, portlar
+#  faqat 127.0.0.1 ga ochiladi (tashqaridan ko'rinmaydi — nginx proxy qiladi).
+#
+#  Ishga tushirish (serverda, shu papkadan):
+#    docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+# ============================================================
+name: woodflow
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: woodflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: woodflow
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: woodflow
+    volumes:
+      - woodflow_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U woodflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Host portga chiqarilmaydi — faqat api ichki tarmoq orqali ulanadi
+
+  api:
+    build:
+      context: ../apps/api
+    container_name: woodflow-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://woodflow:${DB_PASSWORD}@db:5432/woodflow
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: "7d"
+      PORT: "4010"
+      NODE_ENV: production
+      FRONTEND_ORIGIN: https://rs.elite-fitness.cloud
+    ports:
+      - "127.0.0.1:4010:4010"
+    volumes:
+      - woodflow_uploads:/app/uploads
+
+  web:
+    build:
+      context: ../apps/web
+      args:
+        NEXT_PUBLIC_API_URL: https://rs.elite-fitness.cloud/graphql
+    container_name: woodflow-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:3010:3010"
+
+volumes:
+  woodflow_pgdata:
+  woodflow_uploads:

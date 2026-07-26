@@ -2,6 +2,9 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Prisma engine uchun libssl kerak (Alpine'da default yo'q)
+RUN apk add --no-cache openssl
+
 COPY package*.json ./
 RUN npm ci
 
@@ -15,6 +18,9 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Prisma engine runtime'da libssl kutadi
+RUN apk add --no-cache openssl
 
 COPY package*.json ./
 RUN npm ci --omit=dev

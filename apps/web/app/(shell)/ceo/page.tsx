@@ -1,6 +1,8 @@
 'use client';
 
 import { useQuery } from '@apollo/client';
+import { useI18n } from '../../../lib/i18n';
+import { MsgKey } from '../../../lib/i18n/messages';
 import { PLATFORM_STATS } from '../../../lib/queries';
 
 interface Stats {
@@ -11,25 +13,29 @@ interface Stats {
 }
 
 export default function CeoOverviewPage() {
+  const { t } = useI18n();
   const { data, loading } = useQuery<{ platformStats: Stats }>(PLATFORM_STATS);
   const s = data?.platformStats;
 
-  const cards = [
-    ['Ownerlar', s?.ownerCount, 'faol biznes', '/ceo/ownerlar'],
-    ['Kutayotgan', s?.pendingCount, "so'rov", '/ceo/sorovlar'],
-    ['Foydalanuvchilar', s?.userCount, 'jami hisob', '/ceo/foydalanuvchilar'],
-    ['Ishchilar', s?.workerCount, "a'zo", null],
-  ] as const;
+  const cards: [MsgKey, number | undefined, MsgKey, string | null][] = [
+    ['ceo.card.owners', s?.ownerCount, 'ceo.card.ownersSub', '/ceo/ownerlar'],
+    ['ceo.card.pending', s?.pendingCount, 'ceo.card.pendingSub', '/ceo/sorovlar'],
+    [
+      'ceo.card.users',
+      s?.userCount,
+      'ceo.card.usersSub',
+      '/ceo/foydalanuvchilar',
+    ],
+    ['ceo.card.workers', s?.workerCount, 'ceo.card.workersSub', null],
+  ];
 
   return (
     <div className="grid grid-cols-1 gap-6">
       <div>
         <h1 className="text-xl font-bold flex items-center gap-2">
-          <span className="text-amber-500">⭑</span> Umumiy
+          <span className="text-amber-500">⭑</span> {t('ceo.overview')}
         </h1>
-        <p className="text-sm text-neutral-500 mt-1">
-          Platforma holati bir qarashda.
-        </p>
+        <p className="text-sm text-neutral-500 mt-1">{t('ceo.overviewSub')}</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -37,12 +43,12 @@ export default function CeoOverviewPage() {
           const Card = (
             <div className="card rounded-xl p-4 h-full hover:border-brand/40 transition-colors">
               <div className="text-[11px] tracking-wide text-neutral-500 font-medium">
-                {l}
+                {t(l)}
               </div>
               <div className="text-2xl md:text-3xl font-bold mt-1 tabular-nums">
                 {loading ? '…' : (v ?? 0)}
               </div>
-              <div className="text-[11px] text-neutral-400 mt-0.5">{sub}</div>
+              <div className="text-[11px] text-neutral-400 mt-0.5">{t(sub)}</div>
             </div>
           );
           return href ? (

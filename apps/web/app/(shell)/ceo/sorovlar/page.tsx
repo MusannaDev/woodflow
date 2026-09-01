@@ -7,8 +7,10 @@ import {
   PENDING_OWNER_REQUESTS,
 } from '../../../../lib/queries';
 import { RequestRow, uzDate } from '../../../../lib/ceo';
+import { useI18n } from '../../../../lib/i18n';
 
 export default function SorovlarPage() {
+  const { t, ts } = useI18n();
   const { data, loading, refetch } = useQuery<{
     pendingOwnerRequests: RequestRow[];
   }>(PENDING_OWNER_REQUESTS);
@@ -22,14 +24,14 @@ export default function SorovlarPage() {
       setMsg({
         ok: approve,
         text: approve
-          ? `"${r.businessName}" tasdiqlandi — makon(lar) ochildi.`
-          : `"${r.businessName}" rad etildi.`,
+          ? t('ceo.req.approved', { name: r.businessName ?? '' })
+          : t('ceo.req.rejected', { name: r.businessName ?? '' }),
       });
       await refetch();
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
@@ -39,10 +41,8 @@ export default function SorovlarPage() {
   return (
     <div className="grid grid-cols-1 gap-6">
       <div>
-        <h1 className="text-xl font-bold">🔔 So&apos;rovlar</h1>
-        <p className="text-sm text-neutral-500 mt-1">
-          Yangi biznes ochish so&apos;rovlari — siz tasdiqlaysiz.
-        </p>
+        <h1 className="text-xl font-bold">{t('ceo.req.title')}</h1>
+        <p className="text-sm text-neutral-500 mt-1">{t('ceo.req.sub')}</p>
       </div>
 
       {msg && (
@@ -59,15 +59,15 @@ export default function SorovlarPage() {
 
       <section className="card overflow-hidden">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
-          Kutilayotgan so&apos;rovlar ({rows.length})
+          {t('ceo.req.list', { n: rows.length })}
         </h2>
         {loading ? (
           <p className="px-5 py-8 text-sm text-neutral-500 text-center">
-            Yuklanmoqda…
+            {t('common.loading')}
           </p>
         ) : rows.length === 0 ? (
           <p className="px-5 py-8 text-sm text-neutral-500 text-center">
-            Hozircha yangi so&apos;rov yo&apos;q 🎉
+            {t('ceo.req.empty')}
           </p>
         ) : (
           <ul className="divide-y divide-neutral-100">
@@ -91,14 +91,14 @@ export default function SorovlarPage() {
                     onClick={() => onDecide(r, true)}
                     className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
                   >
-                    ✓ Tasdiqlash
+                    {t('emp.approve')}
                   </button>
                   <button
                     disabled={deciding}
                     onClick={() => onDecide(r, false)}
                     className="rounded-xl border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50 disabled:opacity-40 transition-colors"
                   >
-                    ✕ Rad etish
+                    {t('emp.reject')}
                   </button>
                 </div>
               </li>

@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { BrandPanel } from '../../components/auth/BrandPanel';
 import { WorkspacePicker } from '../../components/auth/WorkspacePicker';
+import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { useI18n } from '../../lib/i18n';
 import { LOGIN } from '../../lib/queries';
 import { AuthData, session, WorkspaceBrief } from '../../lib/session';
 
@@ -14,6 +16,7 @@ interface LoginData {
 }
 
 export default function LoginPage() {
+  const { t, ts } = useI18n();
   const router = useRouter();
   const [phone, setPhone] = useState('+998');
   const [password, setPassword] = useState('');
@@ -52,7 +55,9 @@ export default function LoginPage() {
     <main className="min-h-screen grid lg:grid-cols-[1.05fr_1fr]">
       <BrandPanel />
 
-      <section className="flex items-center justify-center p-6 sm:p-10 bg-neutral-50">
+      <section className="relative flex items-center justify-center p-6 sm:p-10 bg-neutral-50">
+        <LanguageSwitcher variant="pill" className="absolute top-5 right-5" />
+
         <div className="w-full max-w-[400px]">
           {/* Mobil logo */}
           <Link
@@ -72,15 +77,15 @@ export default function LoginPage() {
           ) : (
             <div className="animate-[fadeIn_.4s_ease]">
               <h1 className="text-2xl font-bold tracking-tight">
-                Xush kelibsiz 👋
+                {t('auth.login.title')}
               </h1>
               <p className="text-sm text-neutral-500 mt-1.5">
-                Hisobingizga kiring va ishni davom ettiring.
+                {t('auth.login.sub')}
               </p>
 
               <form onSubmit={onSubmit} className="mt-8 grid gap-5">
                 <label className="grid gap-2">
-                  <span className="field-label">Telefon raqam</span>
+                  <span className="field-label">{t('auth.phone')}</span>
                   <input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -93,13 +98,13 @@ export default function LoginPage() {
 
                 <label className="grid gap-2">
                   <span className="field-label flex items-center justify-between">
-                    Parol
+                    {t('auth.password')}
                     <button
                       type="button"
                       onClick={() => setShowPass((v) => !v)}
                       className="text-xs text-neutral-400 hover:text-brand transition-colors"
                     >
-                      {showPass ? 'Yashirish' : 'Ko‘rsatish'}
+                      {showPass ? t('auth.hide') : t('auth.show')}
                     </button>
                   </span>
                   <input
@@ -114,8 +119,10 @@ export default function LoginPage() {
 
                 {error && (
                   <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3.5 py-2.5">
-                    {error.graphQLErrors[0]?.message ??
-                      'Kirishda xato. Qayta urinib ko‘ring.'}
+                    {ts(
+                      error.graphQLErrors[0]?.message,
+                      'auth.login.error',
+                    )}
                   </p>
                 )}
 
@@ -123,17 +130,17 @@ export default function LoginPage() {
                   disabled={loading || !phone || password.length < 4}
                   className="btn-primary mt-1"
                 >
-                  {loading ? 'Kirilmoqda…' : 'Kirish'}
+                  {loading ? t('auth.login.submitting') : t('auth.login.submit')}
                 </button>
               </form>
 
               <p className="mt-8 text-sm text-neutral-500 text-center">
-                Hisobingiz yo&apos;qmi?{' '}
+                {t('auth.noAccount')}{' '}
                 <Link
                   href="/signup"
                   className="font-semibold text-brand hover:underline"
                 >
-                  Ro&apos;yxatdan o&apos;tish
+                  {t('auth.signupLink')}
                 </Link>
               </p>
             </div>

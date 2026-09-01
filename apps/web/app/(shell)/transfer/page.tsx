@@ -3,7 +3,14 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { CREATE_TRANSFER, TRANSFERS_PAGE } from '../../../lib/queries';
-import { formatMoneyInput, parseDecimal, parseMoney, parseQty } from '../../../lib/format';
+import {
+  dateFmt,
+  formatMoneyInput,
+  parseDecimal,
+  parseMoney,
+  parseQty,
+} from '../../../lib/format';
+import { useI18n } from '../../../lib/i18n';
 import { session, WorkspaceBrief } from '../../../lib/session';
 
 /**
@@ -35,10 +42,11 @@ interface PageData {
   inventory: LotRow[];
 }
 
-const fmt = (n: number, d = 0) =>
-  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: d }).format(n);
-
 export default function TransferPage() {
+  const { t, ts, locale } = useI18n();
+  const fmt = (n: number, d = 0) =>
+    new Intl.NumberFormat(locale, { maximumFractionDigits: d }).format(n);
+
   const { data, loading, error, refetch } = useQuery<PageData>(TRANSFERS_PAGE);
   const [createTransfer, { loading: saving }] = useMutation(CREATE_TRANSFER);
 
@@ -94,7 +102,11 @@ export default function TransferPage() {
       });
       setMsg({
         ok: true,
-        text: `${vol} m³ "${other.name}"ga o'tkazildi — ${fmt(priceNum)} so'm (bu yerga daromad, u yerga xarajat).`,
+        text: t('tr.done', {
+          vol,
+          ws: other.name,
+          amount: fmt(priceNum),
+        }),
       });
       setVolume('');
       setPieces('');
@@ -103,20 +115,25 @@ export default function TransferPage() {
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
 
-  if (loading || !ws) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (loading || !ws)
+    return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+    return (
+      <p className="text-red-600 text-sm">
+        {t('common.errorPrefix', { msg: ts(error.message) })}
+      </p>
+    );
 
   const transfers = data?.transfers ?? [];
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <h1 className="text-xl font-bold">Ichki transfer</h1>
+      <h1 className="text-xl font-bold">{t('tr.title')}</h1>
 
       {msg && (
         <p
@@ -137,20 +154,28 @@ export default function TransferPage() {
           className="card p-5 md:p-6 grid gap-5 max-w-2xl"
         >
           <h2 className="font-semibold text-sm">
-            Xomashyo yuborish → <span className="text-emerald-700">{other?.name}</span>
+            {t('tr.sendTo')}{' '}
+            <span className="text-emerald-700">{other?.name}</span>
           </h2>
 
           <label className="grid gap-1.5">
-            <span className="field-label">Ombordan (lot)</span>
+            <span className="field-label">{t('tr.fromLot')}</span>
             <select
               value={lotId}
               onChange={(e) => setLotId(e.target.value)}
               className="field-input"
             >
-              <option value="">— Lot tanlang —</option>
+              <option value="">{t('tr.pickLot')}</option>
               {lots.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.woodType} · {l.grade} — qoldiq {fmt(l.volumeM3Remaining, 1)} m³{l.quantityRemaining != null ? ` · ${fmt(l.quantityRemaining)} dona` : ''}
+                  {t('tr.lotOption', {
+                    wood: l.woodType,
+                    grade: l.grade,
+                    vol: fmt(l.volumeM3Remaining, 1),
+                  })}
+                  {l.quantityRemaining != null
+                    ? ` · ${fmt(l.quantityRemaining)} ${t('common.pcs')}`
+                    : ''}
                 </option>
               ))}
             </select>
@@ -158,7 +183,7 @@ export default function TransferPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="grid gap-1.5">
-              <span className="field-label">Hajm (m³)</span>
+              <span className="field-label">{t('tr.volume')}</span>
               <input
                 value={volume}
                 onChange={(e) => setVolume(e.target.value)}
@@ -170,7 +195,7 @@ export default function TransferPage() {
             {lot?.quantityRemaining != null && (
               <label className="grid gap-1.5">
                 <span className="field-label">
-                  Dona (maks {fmt(lot.quantityRemaining)})
+                  {t('tr.pieces', { max: fmt(lot.quantityRemaining) })}
                 </span>
                 <input
                   value={pieces}
@@ -182,7 +207,7 @@ export default function TransferPage() {
               </label>
             )}
             <label className="grid gap-1.5">
-              <span className="field-label">Jami ichki narx (so&apos;m)</span>
+              <span className="field-label">{t('tr.internalPrice')}</span>
               <input
                 value={price}
                 onChange={(e) => setPrice(formatMoneyInput(e.target.value))}
@@ -195,14 +220,14 @@ export default function TransferPage() {
 
           {vol > 0 && priceNum > 0 && (
             <p className="text-xs text-neutral-500 bg-neutral-50 border border-neutral-100 rounded-lg px-3 py-2">
-              Tannarx: <b>{fmt(priceNum / vol)}</b> so&apos;m/m³ — qabul
-              qiluvchida shu tannarx bilan lot ochiladi.
+              {t('tr.unitCostHint', { value: fmt(priceNum / vol) })}
             </p>
           )}
           {exceeds && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-              ⚠ Lotda yetarli emas — qoldiq{' '}
-              {lot ? fmt(lot.volumeM3Remaining, 1) : 0} m³
+              {t('tr.exceeds', {
+                vol: lot ? fmt(lot.volumeM3Remaining, 1) : 0,
+              })}
             </p>
           )}
 
@@ -210,48 +235,50 @@ export default function TransferPage() {
             disabled={!lotId || vol <= 0 || priceNum <= 0 || exceeds || exceedsPieces || saving}
             className="btn-primary sm:max-w-xs"
           >
-            {saving ? 'O‘tkazilmoqda…' : 'Transfer qilish'}
+            {saving ? t('tr.sending') : t('tr.submit')}
           </button>
         </form>
       ) : (
         /* ─── Ishchi yoki Taxta: faqat tarix ─── */
         <p className="text-sm text-neutral-500 card px-5 py-4 max-w-2xl">
-          {isWood
-            ? "Transfer yuborish faqat biznes egasiga ochiq. Quyida transferlar tarixi."
-            : "Xomashyo Yog'och sotuvi tomonidan yuboriladi va bu yerda avtomatik Xomashyo omboriga tushadi (kirim sifatida). Quyida qabul qilingan transferlar tarixi."}
+          {isWood ? t('tr.ownerOnly') : t('tr.receiverNote')}
         </p>
       )}
 
       {/* ─── Transferlar tarixi ─── */}
       <section className="card overflow-hidden">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
-          Transferlar tarixi
+          {t('tr.history')}
         </h2>
         {transfers.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-neutral-500">
-            Hozircha transfer yo&apos;q.
-          </p>
+          <p className="px-5 py-6 text-sm text-neutral-500">{t('tr.empty')}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[11px] tracking-wider text-neutral-400 border-b border-neutral-100">
-                  <th className="px-5 py-3 font-semibold">SANA</th>
-                  <th className="px-5 py-3 font-semibold">YO&apos;NALISH</th>
-                  <th className="px-5 py-3 font-semibold text-right">HAJM</th>
-                  <th className="px-5 py-3 font-semibold text-right">DONA</th>
+                  <th className="px-5 py-3 font-semibold">{t('tr.col.date')}</th>
+                  <th className="px-5 py-3 font-semibold">
+                    {t('tr.col.direction')}
+                  </th>
                   <th className="px-5 py-3 font-semibold text-right">
-                    ICHKI NARX
+                    {t('tr.col.volume')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-right">
+                    {t('tr.col.pieces')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-right">
+                    {t('tr.col.price')}
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-50">
-                {transfers.map((t) => {
-                  const outgoing = t.fromWorkspaceId === ws.id;
+                {transfers.map((row) => {
+                  const outgoing = row.fromWorkspaceId === ws.id;
                   return (
-                    <tr key={t.id}>
+                    <tr key={row.id}>
                       <td className="px-5 py-3.5 text-neutral-500">
-                        {new Date(t.date).toLocaleDateString('uz-UZ')}
+                        {dateFmt(row.date)}
                       </td>
                       <td className="px-5 py-3.5">
                         <span
@@ -261,20 +288,21 @@ export default function TransferPage() {
                               : 'bg-emerald-100 text-emerald-700'
                           }`}
                         >
-                          {outgoing ? 'Chiqdi →' : '← Keldi'}
+                          {outgoing ? t('tr.out') : t('tr.in')}
                         </span>
                         <span className="text-neutral-600">
-                          {wsName(t.fromWorkspaceId)} → {wsName(t.toWorkspaceId)}
+                          {wsName(row.fromWorkspaceId)} →{' '}
+                          {wsName(row.toWorkspaceId)}
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-right tabular-nums font-semibold">
-                        {fmt(t.volumeM3, 1)} m³
+                        {fmt(row.volumeM3, 1)} m³
                       </td>
                       <td className="px-5 py-3.5 text-right tabular-nums text-neutral-600">
-                        {t.quantity != null ? fmt(t.quantity) : '—'}
+                        {row.quantity != null ? fmt(row.quantity) : '—'}
                       </td>
                       <td className="px-5 py-3.5 text-right tabular-nums">
-                        {fmt(t.internalPriceUzs)}
+                        {fmt(row.internalPriceUzs)}
                       </td>
                     </tr>
                   );

@@ -7,8 +7,10 @@ import {
   PENDING_PLATFORM_PAYMENTS,
 } from '../../../../lib/queries';
 import { fmtMoney, PaymentRow, uzDate } from '../../../../lib/ceo';
+import { useI18n } from '../../../../lib/i18n';
 
 export default function TolovlarPage() {
+  const { t, ts } = useI18n();
   const { data, loading, refetch } = useQuery<{
     pendingPlatformPayments: PaymentRow[];
   }>(PENDING_PLATFORM_PAYMENTS);
@@ -24,14 +26,17 @@ export default function TolovlarPage() {
       setMsg({
         ok: approve,
         text: approve
-          ? `"${p.businessName}" — ${p.months} oylik to‘lov tasdiqlandi, obuna uzaytirildi.`
-          : `"${p.businessName}" to‘lovi rad etildi.`,
+          ? t('ceo.pay.approved', {
+              name: p.businessName ?? '',
+              months: p.months,
+            })
+          : t('ceo.pay.rejected', { name: p.businessName ?? '' }),
       });
       await refetch();
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     } finally {
       setBusyId(null);
@@ -43,10 +48,8 @@ export default function TolovlarPage() {
   return (
     <div className="grid grid-cols-1 gap-6">
       <div>
-        <h1 className="text-xl font-bold">💳 To&apos;lovlar</h1>
-        <p className="text-sm text-neutral-500 mt-1">
-          Ownerlarning platforma to&apos;lovlari — tasdiqlasangiz obuna uzayadi.
-        </p>
+        <h1 className="text-xl font-bold">{t('ceo.pay.title')}</h1>
+        <p className="text-sm text-neutral-500 mt-1">{t('ceo.pay.sub')}</p>
       </div>
 
       {msg && (
@@ -63,15 +66,15 @@ export default function TolovlarPage() {
 
       <section className="card overflow-hidden">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
-          Kutilayotgan to&apos;lovlar ({rows.length})
+          {t('ceo.pay.list', { n: rows.length })}
         </h2>
         {loading ? (
           <p className="px-5 py-8 text-sm text-neutral-500 text-center">
-            Yuklanmoqda…
+            {t('common.loading')}
           </p>
         ) : rows.length === 0 ? (
           <p className="px-5 py-8 text-sm text-neutral-500 text-center">
-            Kutilayotgan to&apos;lov yo&apos;q 🎉
+            {t('ceo.pay.empty')}
           </p>
         ) : (
           <ul className="divide-y divide-neutral-100">
@@ -85,10 +88,10 @@ export default function TolovlarPage() {
                 </span>
                 <span className="flex-1 min-w-44">
                   <span className="block font-semibold">
-                    {fmtMoney(p.amountUzs)} so&apos;m
+                    {fmtMoney(p.amountUzs)} {t('common.som')}
                     <span className="text-xs font-normal text-neutral-400">
                       {' '}
-                      · {p.months} oy
+                      {t('ceo.months', { n: p.months })}
                     </span>
                   </span>
                   <span className="block text-xs text-neutral-500">
@@ -102,14 +105,14 @@ export default function TolovlarPage() {
                     onClick={() => onDecide(p, true)}
                     className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
                   >
-                    ✓ Tasdiqlash
+                    {t('emp.approve')}
                   </button>
                   <button
                     disabled={deciding && busyId === p.id}
                     onClick={() => onDecide(p, false)}
                     className="rounded-xl border border-red-200 text-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-50 disabled:opacity-40 transition-colors"
                   >
-                    ✕ Rad etish
+                    {t('emp.reject')}
                   </button>
                 </div>
               </li>

@@ -10,7 +10,8 @@ import {
   SALARY_HISTORY,
 } from '../../../lib/queries';
 import { session } from '../../../lib/session';
-import { formatMoneyInput, parseMoney } from '../../../lib/format';
+import { dateFmt, fmt, formatMoneyInput, parseMoney } from '../../../lib/format';
+import { useEnumLabel, useI18n } from '../../../lib/i18n';
 
 /**
  * Oylik sahifasi — rolga qarab:
@@ -33,17 +34,14 @@ interface EmpRow {
   salaryAmount: number;
 }
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 }).format(n);
-const uzDate = (s: string) => new Date(s).toLocaleDateString('uz-UZ');
 const currentPeriod = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const STATUS: Record<string, { label: string; cls: string }> = {
-  PENDING: { label: '⏳ Kutilmoqda', cls: 'bg-amber-100 text-amber-700' },
-  CONFIRMED: { label: '✓ Qabul qilindi', cls: 'bg-emerald-100 text-emerald-700' },
+const STATUS_CLS: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-700',
+  CONFIRMED: 'bg-emerald-100 text-emerald-700',
 };
 
 export default function OylikPage() {
@@ -54,6 +52,8 @@ export default function OylikPage() {
 /* ───────────────────────── OWNER ───────────────────────── */
 
 function OwnerSalary() {
+  const { t, ts } = useI18n();
+  const label = useEnumLabel();
   const emps = useQuery<{ employees: EmpRow[] }>(ISHCHILAR_PAGE);
   const hist = useQuery<{ salaryHistory: SalaryRow[] }>(SALARY_HISTORY);
   const [paySalary, { loading: paying }] = useMutation(PAY_SALARY);
@@ -67,22 +67,19 @@ function OwnerSalary() {
     e.preventDefault();
     setMsg(null);
     const amountUzs = parseMoney(amount);
-    if (!empId) return setMsg({ ok: false, text: 'Ishchini tanlang.' });
-    if (amountUzs <= 0) return setMsg({ ok: false, text: 'Summani kiriting.' });
+    if (!empId) return setMsg({ ok: false, text: t('sal.needEmployee') });
+    if (amountUzs <= 0) return setMsg({ ok: false, text: t('sal.needAmount') });
     try {
       await paySalary({
         variables: { input: { employeeId: empId, amountUzs, period } },
       });
-      setMsg({
-        ok: true,
-        text: `Oylik to'landi (${period}) — ishchi tasdiqlashini kuting.`,
-      });
+      setMsg({ ok: true, text: t('sal.paid', { period }) });
       setAmount('');
       await hist.refetch();
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
@@ -93,10 +90,8 @@ function OwnerSalary() {
   return (
     <div className="grid grid-cols-1 gap-6">
       <div>
-        <h1 className="text-xl font-bold">Oylik</h1>
-        <p className="text-sm text-neutral-500 mt-1">
-          Oylik to&apos;lang — ishchi &quot;qabul qildim&quot; deb tasdiqlaydi.
-        </p>
+        <h1 className="text-xl font-bold">{t('sal.title')}</h1>
+        <p className="text-sm text-neutral-500 mt-1">{t('sal.sub')}</p>
       </div>
 
       {msg && (
@@ -117,7 +112,7 @@ function OwnerSalary() {
         className="card p-5 grid grid-cols-1 sm:grid-cols-[1fr_140px_140px_auto] gap-3 items-end"
       >
         <label className="grid gap-1.5">
-          <span className="field-label text-xs">Ishchi</span>
+          <span className="field-label text-xs">{t('sal.employee')}</span>
           <select
             value={empId}
             onChange={(e) => {
@@ -127,7 +122,7 @@ function OwnerSalary() {
             }}
             className="field-input !py-2"
           >
-            <option value="">— tanlang —</option>
+            <option value="">{t('sal.pickEmployee')}</option>
             {employees.map((emp) => (
               <option key={emp.id} value={emp.id}>
                 {emp.name}
@@ -136,7 +131,7 @@ function OwnerSalary() {
           </select>
         </label>
         <label className="grid gap-1.5">
-          <span className="field-label text-xs">Summa (so&apos;m)</span>
+          <span className="field-label text-xs">{t('sal.amount')}</span>
           <input
             value={amount}
             onChange={(e) => setAmount(formatMoneyInput(e.target.value))}
@@ -145,7 +140,7 @@ function OwnerSalary() {
           />
         </label>
         <label className="grid gap-1.5">
-          <span className="field-label text-xs">Davr</span>
+          <span className="field-label text-xs">{t('sal.period')}</span>
           <input
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
@@ -156,34 +151,42 @@ function OwnerSalary() {
           disabled={paying}
           className="rounded-xl bg-brand text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
         >
-          {paying ? 'To‘lanmoqda…' : "To'lash"}
+          {paying ? t('sal.paying') : t('sal.pay')}
         </button>
       </form>
 
       {/* Tarix */}
       <section className="card overflow-hidden">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
-          To&apos;lovlar tarixi ({rows.length})
+          {t('sal.history', { n: rows.length })}
         </h2>
         {rows.length === 0 ? (
           <p className="px-5 py-8 text-sm text-neutral-500 text-center">
-            Hali oylik to&apos;lanmagan.
+            {t('sal.empty')}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[11px] tracking-wider text-neutral-400 border-b border-neutral-100">
-                  <th className="px-5 py-3 font-semibold">ISHCHI</th>
-                  <th className="px-5 py-3 font-semibold">DAVR</th>
-                  <th className="px-5 py-3 font-semibold text-right">SUMMA</th>
-                  <th className="px-5 py-3 font-semibold">SANA</th>
-                  <th className="px-5 py-3 font-semibold text-right">HOLAT</th>
+                  <th className="px-5 py-3 font-semibold">
+                    {t('sal.col.employee')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold">
+                    {t('sal.col.period')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-right">
+                    {t('sal.col.amount')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold">{t('sal.col.date')}</th>
+                  <th className="px-5 py-3 font-semibold text-right">
+                    {t('sal.col.status')}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-50">
                 {rows.map((r) => {
-                  const st = STATUS[r.status] ?? STATUS.PENDING;
+                  const cls = STATUS_CLS[r.status] ?? STATUS_CLS.PENDING;
                   return (
                     <tr key={r.id}>
                       <td className="px-5 py-3 font-medium">
@@ -194,13 +197,13 @@ function OwnerSalary() {
                         {fmt(r.amountUzs)}
                       </td>
                       <td className="px-5 py-3 text-neutral-500">
-                        {uzDate(r.date)}
+                        {dateFmt(r.date)}
                       </td>
                       <td className="px-5 py-3 text-right">
                         <span
-                          className={`text-[11px] font-medium rounded-full px-2.5 py-1 ${st.cls}`}
+                          className={`text-[11px] font-medium rounded-full px-2.5 py-1 ${cls}`}
                         >
-                          {st.label}
+                          {label('salStatus', r.status)}
                         </span>
                       </td>
                     </tr>
@@ -218,6 +221,8 @@ function OwnerSalary() {
 /* ───────────────────────── WORKER ───────────────────────── */
 
 function WorkerSalary() {
+  const { t } = useI18n();
+  const label = useEnumLabel();
   const { data, loading, refetch } = useQuery<{ mySalaries: SalaryRow[] }>(
     MY_SALARIES,
   );
@@ -230,10 +235,10 @@ function WorkerSalary() {
     setMsg(null);
     try {
       await confirmSalary({ variables: { paymentId: id } });
-      setMsg('Oylik qabul qilindi — rahmat!');
+      setMsg(t('sal.confirmed'));
       await refetch();
     } catch {
-      setMsg('Xato yuz berdi.');
+      setMsg(t('common.error'));
     } finally {
       setBusyId(null);
     }
@@ -245,12 +250,12 @@ function WorkerSalary() {
   return (
     <div className="grid grid-cols-1 gap-6">
       <div>
-        <h1 className="text-xl font-bold">Mening oyliklarim</h1>
+        <h1 className="text-xl font-bold">{t('sal.myTitle')}</h1>
         <p className="text-sm text-neutral-500 mt-1">
-          Oylik berilganda &quot;Qabul qildim&quot; deb tasdiqlang.
+          {t('sal.mySub')}
           {pending > 0 && (
             <span className="ml-1 text-amber-600 font-medium">
-              {pending} ta tasdiq kutmoqda.
+              {t('sal.pendingCount', { n: pending })}
             </span>
           )}
         </p>
@@ -265,24 +270,24 @@ function WorkerSalary() {
       <section className="card overflow-hidden">
         {loading ? (
           <p className="px-5 py-8 text-sm text-neutral-500 text-center">
-            Yuklanmoqda…
+            {t('common.loading')}
           </p>
         ) : rows.length === 0 ? (
           <p className="px-5 py-8 text-sm text-neutral-500 text-center">
-            Hali oylik yo&apos;q.
+            {t('sal.myEmpty')}
           </p>
         ) : (
           <ul className="divide-y divide-neutral-100">
             {rows.map((r) => {
-              const st = STATUS[r.status] ?? STATUS.PENDING;
+              const cls = STATUS_CLS[r.status] ?? STATUS_CLS.PENDING;
               return (
                 <li key={r.id} className="px-5 py-4 flex items-center gap-3">
                   <span className="flex-1 min-w-0">
                     <span className="block font-semibold tabular-nums">
-                      {fmt(r.amountUzs)} so&apos;m
+                      {fmt(r.amountUzs)} {t('common.som')}
                     </span>
                     <span className="block text-xs text-neutral-500">
-                      {r.period} · {uzDate(r.date)}
+                      {r.period} · {dateFmt(r.date)}
                     </span>
                   </span>
                   {r.status === 'PENDING' ? (
@@ -292,14 +297,14 @@ function WorkerSalary() {
                       className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity flex-none"
                     >
                       {confirming && busyId === r.id
-                        ? 'Tasdiqlanmoqda…'
-                        : '✓ Qabul qildim'}
+                        ? t('sal.confirming')
+                        : t('sal.confirm')}
                     </button>
                   ) : (
                     <span
-                      className={`text-[11px] font-medium rounded-full px-2.5 py-1 flex-none ${st.cls}`}
+                      className={`text-[11px] font-medium rounded-full px-2.5 py-1 flex-none ${cls}`}
                     >
-                      {st.label}
+                      {label('salStatus', r.status)}
                     </span>
                   )}
                 </li>

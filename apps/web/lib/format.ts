@@ -46,14 +46,67 @@ export function formatMoneyInput(raw: string): string {
   return rest.length > 0 ? `${grouped}.${rest.join('')}` : grouped;
 }
 
-/* ── Ko'rsatish formatlari (bitta Intl instansi — samarador) ── */
+/* ── Ko'rsatish formatlari — joriy tilga bog'liq ── */
 
-const nf0 = new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 });
-const nf1 = new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 1 });
+/**
+ * Joriy formatlash tili. I18nProvider til almashganda `setFormatLang` bilan
+ * yangilaydi, shuning uchun `fmt`/`mln`/`dateFmt` chaqiruvlarini o'zgartirish
+ * shart emas — ular avtomatik to'g'ri tilda ishlaydi.
+ *
+ * MUHIM: bu modul darajasidagi o'zgaruvchi — serverda u barcha so'rovlar
+ * uchun umumiy bo'lardi va bir foydalanuvchining tili boshqasiga "oqib"
+ * ketishi mumkin edi. Shu sabab u FAQAT brauzerda o'zgaradi; SSR har doim
+ * standart 'uz' bilan render qiladi (sahifalar server tomonda hali
+ * ma'lumotsiz — "yuklanmoqda" holatida chiqadi), so'ng brauzerda
+ * hydration paytida to'g'ri til qo'llanadi.
+ */
+let formatLang: 'uz' | 'en' = 'uz';
 
-export const fmt = (n: number): string => nf0.format(n);
-export const fmt1 = (n: number): string => nf1.format(n);
+const LOCALES = { uz: 'uz-UZ', en: 'en-US' } as const;
 
-/** Katta summani qisqartirish: 5 400 000 → "5.4 mln". */
+/** Har til uchun Intl instansiyalari bir marta yaratiladi (samarador). */
+const CACHE: Record<string, Intl.NumberFormat> = {};
+
+const numberFormat = (digits: 0 | 1): Intl.NumberFormat => {
+  const key = `${formatLang}:${digits}`;
+  return (CACHE[key] ??= new Intl.NumberFormat(LOCALES[formatLang], {
+    maximumFractionDigits: digits,
+  }));
+};
+
+export function setFormatLang(lang: 'uz' | 'en'): void {
+  // Serverda o'zgartirmaymiz — so'rovlar orasida holat oqib ketmasligi uchun.
+  if (typeof window === 'undefined') return;
+  formatLang = lang;
+}
+
+export const currentLocale = (): string => LOCALES[formatLang];
+
+export const fmt = (n: number): string => numberFormat(0).format(n);
+export const fmt1 = (n: number): string => numberFormat(1).format(n);
+
+/** Katta summani qisqartirish: 5 400 000 → "5.4 mln" / "5.4M". */
 export const mln = (n: number): string =>
-  Math.abs(n) >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} mln` : fmt(n);
+  Math.abs(n) >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(1)}${formatLang === 'uz' ? ' mln' : 'M'}`
+    : fmt(n);
+
+/** Sanani joriy tilda ko'rsatish. */
+export const dateFmt = (
+  value: string | number | Date,
+  opts?: Intl.DateTimeFormatOptions,
+): string => {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString(LOCALES[formatLang], opts);
+};
+
+/** Sana + vaqt. */
+export const dateTimeFmt = (value: string | number | Date): string => {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString(LOCALES[formatLang], {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+};

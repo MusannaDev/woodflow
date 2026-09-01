@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { BrandPanel } from '../../components/auth/BrandPanel';
 import { WorkspacePicker } from '../../components/auth/WorkspacePicker';
+import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { useI18n } from '../../lib/i18n';
+import { MsgKey } from '../../lib/i18n/messages';
 import { REGISTER } from '../../lib/queries';
 import { AuthData, session, WorkspaceBrief } from '../../lib/session';
 
@@ -13,43 +16,54 @@ interface RegisterData {
   register: AuthData;
 }
 
-const ROLES = [
+const ROLES: {
+  value: 'OWNER' | 'WORKER';
+  icon: string;
+  title: MsgKey;
+  desc: MsgKey;
+}[] = [
   {
-    value: 'OWNER' as const,
+    value: 'OWNER',
     icon: '👑',
-    title: 'Biznes egasi',
-    desc: "O'z biznesingizni ochasiz — CEO tasdig'idan so'ng makon(lar) tayyor bo'ladi.",
+    title: 'auth.role.owner.title',
+    desc: 'auth.role.owner.desc',
   },
   {
-    value: 'WORKER' as const,
+    value: 'WORKER',
     icon: '🛠',
-    title: 'Ishchi',
-    desc: "Biznesga ishchi sifatida qo'shilasiz — egangiz tasdiqlagach kirasiz.",
+    title: 'auth.role.worker.title',
+    desc: 'auth.role.worker.desc',
   },
 ];
 
-const KINDS = [
+const KINDS: {
+  value: 'BOTH' | 'WOOD_ONLY' | 'LUMBER_ONLY';
+  icon: string;
+  title: MsgKey;
+  desc: MsgKey;
+}[] = [
   {
-    value: 'BOTH' as const,
+    value: 'BOTH',
     icon: '🌲🪵',
-    title: "Yog'och + Taxta",
-    desc: 'Ikkala makon, ichki transfer bilan',
+    title: 'auth.kind.both.title',
+    desc: 'auth.kind.both.desc',
   },
   {
-    value: 'WOOD_ONLY' as const,
+    value: 'WOOD_ONLY',
     icon: '🌲',
-    title: "Faqat Yog'och sotuvi",
-    desc: 'Bitta makon — yog‘och savdosi',
+    title: 'auth.kind.wood.title',
+    desc: 'auth.kind.wood.desc',
   },
   {
-    value: 'LUMBER_ONLY' as const,
+    value: 'LUMBER_ONLY',
     icon: '🪵',
-    title: 'Faqat Taxta sotuvi',
-    desc: 'Bitta makon — taxta ishlab chiqarish',
+    title: 'auth.kind.lumber.title',
+    desc: 'auth.kind.lumber.desc',
   },
 ];
 
 export default function SignupPage() {
+  const { t, ts } = useI18n();
   const router = useRouter();
   const [accountType, setAccountType] = useState<'OWNER' | 'WORKER'>('OWNER');
   const [businessKind, setBusinessKind] = useState<
@@ -114,7 +128,9 @@ export default function SignupPage() {
     <main className="min-h-screen grid lg:grid-cols-[1.05fr_1fr]">
       <BrandPanel />
 
-      <section className="flex items-center justify-center p-6 sm:p-10 bg-neutral-50">
+      <section className="relative flex items-center justify-center p-6 sm:p-10 bg-neutral-50">
+        <LanguageSwitcher variant="pill" className="absolute top-5 right-5" />
+
         <div className="w-full max-w-[420px]">
           <Link
             href="/"
@@ -133,10 +149,10 @@ export default function SignupPage() {
           ) : (
             <div className="animate-[fadeIn_.4s_ease]">
               <h1 className="text-2xl font-bold tracking-tight">
-                Hisob yaratish
+                {t('auth.signup.title')}
               </h1>
               <p className="text-sm text-neutral-500 mt-1.5">
-                Avval kim sifatida kirishingizni tanlang.
+                {t('auth.signup.sub')}
               </p>
 
               {/* Rol tanlash kartalari */}
@@ -154,10 +170,10 @@ export default function SignupPage() {
                   >
                     <span className="text-xl">{r.icon}</span>
                     <span className="block font-semibold text-sm mt-1.5">
-                      {r.title}
+                      {t(r.title)}
                     </span>
                     <span className="block text-[11px] text-neutral-500 leading-snug mt-1">
-                      {r.desc}
+                      {t(r.desc)}
                     </span>
                   </button>
                 ))}
@@ -165,30 +181,34 @@ export default function SignupPage() {
 
               <form onSubmit={onSubmit} className="mt-5 grid gap-4">
                 <label className="grid gap-1.5">
-                  <span className="field-label">Ism familiya</span>
+                  <span className="field-label">{t('auth.fullName')}</span>
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     autoComplete="name"
                     className="field-input"
-                    placeholder="Otabek Juraev"
+                    placeholder={t('auth.fullNamePh')}
                   />
                 </label>
 
                 {accountType === 'OWNER' && (
                   <>
                     <label className="grid gap-1.5 animate-[fadeIn_.3s_ease]">
-                      <span className="field-label">Biznes nomi</span>
+                      <span className="field-label">
+                        {t('auth.businessName')}
+                      </span>
                       <input
                         value={businessName}
                         onChange={(e) => setBusinessName(e.target.value)}
                         className="field-input"
-                        placeholder="Masalan: Premium Wood"
+                        placeholder={t('auth.businessNamePh')}
                       />
                     </label>
 
                     <div className="grid gap-2 animate-[fadeIn_.3s_ease]">
-                      <span className="field-label">Biznes turi</span>
+                      <span className="field-label">
+                        {t('auth.businessKind')}
+                      </span>
                       {KINDS.map((k) => (
                         <button
                           key={k.value}
@@ -203,10 +223,10 @@ export default function SignupPage() {
                           <span className="text-lg leading-none">{k.icon}</span>
                           <span className="min-w-0">
                             <span className="block font-semibold text-sm">
-                              {k.title}
+                              {t(k.title)}
                             </span>
                             <span className="block text-[11px] text-neutral-500 leading-snug">
-                              {k.desc}
+                              {t(k.desc)}
                             </span>
                           </span>
                           <span
@@ -227,7 +247,7 @@ export default function SignupPage() {
                 )}
 
                 <label className="grid gap-1.5">
-                  <span className="field-label">Telefon raqam</span>
+                  <span className="field-label">{t('auth.phone')}</span>
                   <input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
@@ -240,13 +260,13 @@ export default function SignupPage() {
 
                 <label className="grid gap-1.5">
                   <span className="field-label flex items-center justify-between">
-                    Parol
+                    {t('auth.password')}
                     <button
                       type="button"
                       onClick={() => setShowPass((v) => !v)}
                       className="text-xs text-neutral-400 hover:text-brand transition-colors"
                     >
-                      {showPass ? 'Yashirish' : 'Ko‘rsatish'}
+                      {showPass ? t('auth.hide') : t('auth.show')}
                     </button>
                   </span>
                   <input
@@ -255,12 +275,14 @@ export default function SignupPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
                     className="field-input"
-                    placeholder="Kamida 6 belgi"
+                    placeholder={t('auth.passwordPh')}
                   />
                 </label>
 
                 <label className="grid gap-1.5">
-                  <span className="field-label">Parolni tasdiqlang</span>
+                  <span className="field-label">
+                    {t('auth.confirmPassword')}
+                  </span>
                   <input
                     type={showPass ? 'text' : 'password'}
                     value={confirm}
@@ -271,38 +293,40 @@ export default function SignupPage() {
                         ? 'border-red-400 focus:ring-red-100 focus:border-red-400'
                         : ''
                     }`}
-                    placeholder="Qayta kiriting"
+                    placeholder={t('auth.confirmPh')}
                   />
                   {mismatch && (
                     <span className="text-xs text-red-500">
-                      Parollar mos kelmadi.
+                      {t('auth.mismatch')}
                     </span>
                   )}
                 </label>
 
                 {error && (
                   <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3.5 py-2.5">
-                    {error.graphQLErrors[0]?.message ??
-                      'Ro‘yxatdan o‘tishda xato. Qayta urinib ko‘ring.'}
+                    {ts(
+                      error.graphQLErrors[0]?.message,
+                      'auth.signup.error',
+                    )}
                   </p>
                 )}
 
                 <button disabled={!canSubmit} className="btn-primary mt-1">
                   {loading
-                    ? 'Yaratilmoqda…'
+                    ? t('auth.signup.creating')
                     : accountType === 'OWNER'
-                      ? 'Biznes ochish'
-                      : "Ishchi sifatida qo'shilish"}
+                      ? t('auth.signup.asOwner')
+                      : t('auth.signup.asWorker')}
                 </button>
               </form>
 
               <p className="mt-6 text-sm text-neutral-500 text-center">
-                Hisobingiz bormi?{' '}
+                {t('auth.hasAccount')}{' '}
                 <Link
                   href="/login"
                   className="font-semibold text-brand hover:underline"
                 >
-                  Kirish
+                  {t('auth.loginLink')}
                 </Link>
               </p>
             </div>

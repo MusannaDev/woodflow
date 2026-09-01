@@ -1,6 +1,9 @@
 'use client';
 
 import { useQuery } from '@apollo/client';
+import { dateFmt, fmt1, mln } from '../../../lib/format';
+import { useEnumLabel, useI18n } from '../../../lib/i18n';
+import { MsgKey } from '../../../lib/i18n/messages';
 import { DASHBOARD } from '../../../lib/queries';
 
 interface SaleRow {
@@ -31,23 +34,18 @@ interface DashboardData {
   customers: CustomerRow[];
 }
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 1 }).format(n);
-
-/** mln so'm ko'rinishida qisqartirish. */
-const mln = (n: number) =>
-  n >= 1_000_000 ? `${fmt(n / 1_000_000)} mln` : fmt(n);
-
 export default function DashboardPage() {
+  const { t, ts } = useI18n();
+  const label = useEnumLabel();
   const { data, loading, error } = useQuery<DashboardData>(DASHBOARD);
 
   if (loading) {
-    return <p className="text-neutral-500">Yuklanmoqda…</p>;
+    return <p className="text-neutral-500">{t('common.loading')}</p>;
   }
   if (error) {
     return (
       <p className="text-red-600 text-sm">
-        Xato: {error.message}. Backend ishlayaptimi (port 4010)?
+        {t('dash.error', { msg: ts(error.message) })}
       </p>
     );
   }
@@ -64,14 +62,14 @@ export default function DashboardPage() {
   const totalDebt = sales.reduce((a, s) => a + s.debtUzs, 0);
   const debtors = customers.filter((c) => c.debtUzs > 0).length;
 
-  const kpis = [
-    { label: 'BUGUNGI SAVDO', value: `${mln(todaySales)}`, sub: "so'm" },
-    { label: 'JAMI SAVDO', value: `${mln(totalSales)}`, sub: "so'm" },
-    { label: "OMBOR QOLDIG'I", value: fmt(stockM3), sub: 'm³' },
+  const kpis: { label: MsgKey; value: string; sub: string; warn?: boolean }[] = [
+    { label: 'dash.kpi.today', value: mln(todaySales), sub: t('common.som') },
+    { label: 'dash.kpi.total', value: mln(totalSales), sub: t('common.som') },
+    { label: 'dash.kpi.stock', value: fmt1(stockM3), sub: 'm³' },
     {
-      label: 'QARZLAR',
-      value: `${mln(totalDebt)}`,
-      sub: debtors > 0 ? `${debtors} mijoz` : "so'm",
+      label: 'dash.kpi.debt',
+      value: mln(totalDebt),
+      sub: debtors > 0 ? t('dash.debtors', { n: debtors }) : t('common.som'),
       warn: totalDebt > 0,
     },
   ];
@@ -92,7 +90,7 @@ export default function DashboardPage() {
             }`}
           >
             <div className="text-[11px] tracking-wide text-neutral-500 font-medium">
-              {k.label}
+              {t(k.label)}
             </div>
             <div className="text-xl md:text-2xl font-bold mt-1 tabular-nums">
               {k.value}
@@ -106,11 +104,11 @@ export default function DashboardPage() {
         {/* So'nggi savdolar */}
         <section className="card rounded-xl">
           <h2 className="px-4 py-3 border-b border-neutral-100 font-semibold text-sm">
-            So&apos;nggi savdolar
+            {t('dash.recentSales')}
           </h2>
           {recent.length === 0 ? (
             <p className="px-4 py-6 text-sm text-neutral-500">
-              Hozircha savdo yo&apos;q.
+              {t('dash.noSales')}
             </p>
           ) : (
             <ul className="divide-y divide-neutral-100">
@@ -118,20 +116,19 @@ export default function DashboardPage() {
                 <li key={s.id} className="px-4 py-3 flex items-center gap-3">
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm font-medium tabular-nums">
-                      {mln(s.totalPriceUzs)} so&apos;m
+                      {mln(s.totalPriceUzs)} {t('common.som')}
                     </span>
                     <span className="block text-xs text-neutral-400">
-                      {new Date(s.date).toLocaleDateString('uz-UZ')} ·{' '}
-                      {s.saleType}
+                      {dateFmt(s.date)} · {label('saleType', s.saleType)}
                     </span>
                   </span>
                   {s.debtUzs > 0 ? (
                     <span className="text-[11px] font-medium bg-amber-100 text-amber-700 rounded-full px-2.5 py-1">
-                      Qarz {mln(s.debtUzs)}
+                      {t('dash.debtBadge', { amount: mln(s.debtUzs) })}
                     </span>
                   ) : (
                     <span className="text-[11px] font-medium bg-emerald-100 text-emerald-700 rounded-full px-2.5 py-1">
-                      To&apos;landi
+                      {t('term.paid')}
                     </span>
                   )}
                 </li>
@@ -143,10 +140,12 @@ export default function DashboardPage() {
         {/* Ombor lotlari */}
         <section className="card rounded-xl">
           <h2 className="px-4 py-3 border-b border-neutral-100 font-semibold text-sm">
-            Ombor (lotlar)
+            {t('dash.inventory')}
           </h2>
           {inventory.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-neutral-500">Ombor bo&apos;sh.</p>
+            <p className="px-4 py-6 text-sm text-neutral-500">
+              {t('dash.emptyStock')}
+            </p>
           ) : (
             <ul className="divide-y divide-neutral-100">
               {inventory.map((l) => (
@@ -156,11 +155,7 @@ export default function DashboardPage() {
                       {l.woodType} · {l.grade}
                     </span>
                     <span className="block text-xs text-neutral-400">
-                      {l.source === 'RUSSIA_IMPORT'
-                        ? 'Rossiya importi'
-                        : l.source === 'INTERNAL_TRANSFER'
-                          ? 'Ichki transfer'
-                          : 'Mahalliy'}
+                      {label('src', l.source)}
                     </span>
                   </span>
                   <span
@@ -172,7 +167,10 @@ export default function DashboardPage() {
                           : ''
                     }`}
                   >
-                    {fmt(l.volumeM3Remaining)} m³{l.quantityRemaining != null ? ` · ${fmt(l.quantityRemaining)} dona` : ''}
+                    {fmt1(l.volumeM3Remaining)} m³
+                    {l.quantityRemaining != null
+                      ? ` · ${fmt1(l.quantityRemaining)} ${t('common.pcs')}`
+                      : ''}
                   </span>
                 </li>
               ))}

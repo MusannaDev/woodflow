@@ -3,7 +3,8 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { Fragment, FormEvent, useMemo, useState } from 'react';
 import { ADD_PAYMENT, TOLOVLAR_PAGE } from '../../../lib/queries';
-import { formatMoneyInput, parseMoney } from '../../../lib/format';
+import { dateFmt, fmt, formatMoneyInput, parseMoney } from '../../../lib/format';
+import { useI18n } from '../../../lib/i18n';
 
 /**
  * To'lovlar / Qarzlar (UI hujjati §7.5): har savdoga bog'langan to'lovlar.
@@ -34,10 +35,8 @@ interface PageData {
   customers: { id: string; name: string }[];
 }
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 }).format(n);
-
 export default function TolovlarPage() {
+  const { t, ts } = useI18n();
   const { data, loading, error, refetch } = useQuery<PageData>(TOLOVLAR_PAGE);
   const [addPayment, { loading: saving }] = useMutation(ADD_PAYMENT);
 
@@ -49,8 +48,9 @@ export default function TolovlarPage() {
 
   const customerName = useMemo(() => {
     const map = new Map((data?.customers ?? []).map((c) => [c.id, c.name]));
-    return (id: string | null) => (id ? (map.get(id) ?? '—') : 'Nomsiz mijoz');
-  }, [data]);
+    return (id: string | null) =>
+      id ? (map.get(id) ?? '—') : t('pay.unnamed');
+  }, [data, t]);
 
   const debts = (data?.sales ?? []).filter((s) => s.debtUzs > 0);
   const paid = (data?.sales ?? []).filter((s) => s.debtUzs <= 0);
@@ -65,13 +65,16 @@ export default function TolovlarPage() {
     e.preventDefault();
     setMsg(null);
     if (amountNum <= 0 || (currency === 'USD' && rateNum <= 0)) {
-      setMsg({ ok: false, text: 'Summa (va USD uchun kurs) kiriting.' });
+      setMsg({ ok: false, text: t('pay.needAmount') });
       return;
     }
     if (paymentUzs > sale.debtUzs + 0.01) {
       setMsg({
         ok: false,
-        text: `To'lov (${fmt(paymentUzs)} so'm) qarzdan (${fmt(sale.debtUzs)} so'm) oshib ketdi.`,
+        text: t('pay.tooMuch', {
+          paid: fmt(paymentUzs),
+          debt: fmt(sale.debtUzs),
+        }),
       });
       return;
     }
@@ -90,8 +93,12 @@ export default function TolovlarPage() {
         ok: true,
         text:
           currency === 'USD'
-            ? `${fmt(amountNum)} USD (kurs ${fmt(rateNum)}) = ${fmt(paymentUzs)} so'm qabul qilindi.`
-            : `${fmt(amountNum)} so'm qabul qilindi.`,
+            ? t('pay.doneUsd', {
+                amount: fmt(amountNum),
+                rate: fmt(rateNum),
+                uzs: fmt(paymentUzs),
+              })
+            : t('pay.doneUzs', { amount: fmt(amountNum) }),
       });
       setOpenId(null);
       setAmount('');
@@ -101,38 +108,42 @@ export default function TolovlarPage() {
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
 
-  if (loading) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (loading) return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+    return (
+      <p className="text-red-600 text-sm">
+        {t('common.errorPrefix', { msg: ts(error.message) })}
+      </p>
+    );
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <h1 className="text-xl font-bold">To&apos;lovlar / Qarzlar</h1>
+      <h1 className="text-xl font-bold">{t('pay.title')}</h1>
 
       {/* Chiplar */}
       <div className="grid grid-cols-2 gap-3 sm:max-w-md">
         <div className="card rounded-xl !border-amber-300 p-4">
           <div className="text-[11px] tracking-wide text-neutral-500 font-medium">
-            JAMI QARZ
+            {t('pay.totalDebt')}
           </div>
           <div className="text-xl md:text-2xl font-bold mt-1 tabular-nums text-amber-700">
             {fmt(totalDebt)}
           </div>
-          <div className="text-xs text-neutral-400">so&apos;m</div>
+          <div className="text-xs text-neutral-400">{t('common.som')}</div>
         </div>
         <div className="card rounded-xl p-4">
           <div className="text-[11px] tracking-wide text-neutral-500 font-medium">
-            QARZDOR SAVDOLAR
+            {t('pay.debtSales')}
           </div>
           <div className="text-xl md:text-2xl font-bold mt-1 tabular-nums">
             {debts.length}
           </div>
-          <div className="text-xs text-neutral-400">ta</div>
+          <div className="text-xs text-neutral-400">{t('pay.count')}</div>
         </div>
       </div>
 
@@ -151,12 +162,10 @@ export default function TolovlarPage() {
       {/* ─── Qarzli savdolar ─── */}
       <section className="card overflow-hidden">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
-          Qarzli savdolar
+          {t('pay.debtList')}
         </h2>
         {debts.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-neutral-500">
-            Qarz yo&apos;q — hammasi to&apos;langan 🎉
-          </p>
+          <p className="px-5 py-6 text-sm text-neutral-500">{t('pay.noDebt')}</p>
         ) : (
           <ul className="divide-y divide-neutral-50">
             {debts.map((s) => {
@@ -169,12 +178,15 @@ export default function TolovlarPage() {
                         {customerName(s.customerId)}
                       </span>
                       <span className="block text-xs text-neutral-400">
-                        {new Date(s.date).toLocaleDateString('uz-UZ')} · jami{' '}
-                        {fmt(s.totalPriceUzs)} · to&apos;langan {fmt(s.paidUzs)}
+                        {t('pay.rowMeta', {
+                          date: dateFmt(s.date),
+                          total: fmt(s.totalPriceUzs),
+                          paid: fmt(s.paidUzs),
+                        })}
                       </span>
                     </span>
                     <span className="text-sm font-bold tabular-nums text-amber-700">
-                      qarz {fmt(s.debtUzs)}
+                      {t('pay.debtAmount', { amount: fmt(s.debtUzs) })}
                     </span>
                     <button
                       onClick={() => {
@@ -190,7 +202,7 @@ export default function TolovlarPage() {
                           : 'border-brand bg-brand text-white hover:opacity-90'
                       }`}
                     >
-                      {isOpen ? 'Bekor qilish' : "To'lov qabul qilish"}
+                      {isOpen ? t('common.cancel') : t('pay.accept')}
                     </button>
                   </li>
 
@@ -201,7 +213,9 @@ export default function TolovlarPage() {
                         className="flex flex-wrap items-end gap-3"
                       >
                         <label className="grid gap-1.5">
-                          <span className="field-label text-xs">Summa</span>
+                          <span className="field-label text-xs">
+                            {t('pay.amount')}
+                          </span>
                           <input
                             value={amount}
                             onChange={(e) => setAmount(formatMoneyInput(e.target.value))}
@@ -212,7 +226,9 @@ export default function TolovlarPage() {
                           />
                         </label>
                         <label className="grid gap-1.5">
-                          <span className="field-label text-xs">Valyuta</span>
+                          <span className="field-label text-xs">
+                            {t('pay.currency')}
+                          </span>
                           <select
                             value={currency}
                             onChange={(e) =>
@@ -220,14 +236,14 @@ export default function TolovlarPage() {
                             }
                             className="field-input !py-2 w-28"
                           >
-                            <option value="UZS">so&apos;m</option>
+                            <option value="UZS">{t('common.som')}</option>
                             <option value="USD">USD</option>
                           </select>
                         </label>
                         {currency === 'USD' && (
                           <label className="grid gap-1.5">
                             <span className="field-label text-xs">
-                              Kurs (1 USD = ? so&apos;m)
+                              {t('pay.rate')}
                             </span>
                             <input
                               value={rate}
@@ -243,13 +259,13 @@ export default function TolovlarPage() {
                           <b className="tabular-nums">
                             {paymentUzs > 0 ? fmt(paymentUzs) : '—'}
                           </b>{' '}
-                          so&apos;m
+                          {t('common.som')}
                         </div>
                         <button
                           disabled={saving}
                           className="rounded-xl bg-brand text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
                         >
-                          {saving ? 'Saqlanmoqda…' : 'Qabul qilish'}
+                          {saving ? t('common.saving') : t('pay.submit')}
                         </button>
                       </form>
                     </li>
@@ -264,10 +280,12 @@ export default function TolovlarPage() {
       {/* ─── To'langan savdolar ─── */}
       <section className="card">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
-          To&apos;langan savdolar
+          {t('pay.paidList')}
         </h2>
         {paid.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-neutral-500">Hozircha yo&apos;q.</p>
+          <p className="px-5 py-6 text-sm text-neutral-500">
+            {t('pay.paidEmpty')}
+          </p>
         ) : (
           <ul className="divide-y divide-neutral-50">
             {paid.map((s) => (
@@ -277,17 +295,19 @@ export default function TolovlarPage() {
                     {customerName(s.customerId)}
                   </span>
                   <span className="block text-xs text-neutral-400">
-                    {new Date(s.date).toLocaleDateString('uz-UZ')} ·{' '}
-                    {s.payments.length} to&apos;lov
+                    {t('pay.paidMeta', {
+                      date: dateFmt(s.date),
+                      n: s.payments.length,
+                    })}
                     {s.payments.some((p) => p.currency === 'USD') &&
-                      ' (USD bor)'}
+                      t('pay.hasUsd')}
                   </span>
                 </span>
                 <span className="text-sm font-semibold tabular-nums">
                   {fmt(s.totalPriceUzs)}
                 </span>
                 <span className="text-[11px] font-medium bg-emerald-100 text-emerald-700 rounded-full px-2.5 py-1">
-                  To&apos;landi
+                  {t('term.paid')}
                 </span>
               </li>
             ))}

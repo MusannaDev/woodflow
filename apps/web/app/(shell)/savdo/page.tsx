@@ -14,6 +14,9 @@ import {
   parseMoney,
   parseQty,
 } from '../../../lib/format';
+import { dateFmt } from '../../../lib/format';
+import { useEnumLabel, useI18n } from '../../../lib/i18n';
+import { MsgKey } from '../../../lib/i18n/messages';
 import { roundLogVolumeM3 } from '../../../lib/wood';
 import { session } from '../../../lib/session';
 
@@ -59,22 +62,20 @@ interface PageData {
 }
 
 const SALE_TYPES = [
-  { value: 'PER_PIECE', label: 'Donaga' },
-  { value: 'PER_CUBE', label: 'Kub bilan' },
-  { value: 'WHOLESALE', label: 'Ulgurji' },
-] as const;
+  { value: 'PER_PIECE', label: 'sale.type.PER_PIECE' },
+  { value: 'PER_CUBE', label: 'sale.type.PER_CUBE' },
+  { value: 'WHOLESALE', label: 'sale.type.WHOLESALE' },
+] as const satisfies readonly { value: string; label: MsgKey }[];
 
-const fmt = (n: number, d = 0) =>
-  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: d }).format(n);
-
-const sourceLabel = (s: string) =>
-  s === 'RUSSIA_IMPORT'
-    ? 'Import'
-    : s === 'INTERNAL_TRANSFER'
-      ? 'Transfer'
-      : 'Mahalliy';
+/** O'lcham maydoni: [yorliq kaliti, qiymat, setter]. */
+type DimField = [MsgKey, string, (v: string) => void];
 
 export default function SavdoPage() {
+  const { t, ts, locale } = useI18n();
+  const label = useEnumLabel();
+  const fmt = (n: number, d = 0) =>
+    new Intl.NumberFormat(locale, { maximumFractionDigits: d }).format(n);
+
   const { data, loading, error, refetch } = useQuery<PageData>(SALES_PAGE);
   const [createSale, { loading: saving }] = useMutation(CREATE_SALE);
   const [addPayment] = useMutation(ADD_PAYMENT);
@@ -198,7 +199,7 @@ export default function SavdoPage() {
           },
         });
         finalCustomerId = custRes.data.createCustomer.id as string;
-        newCustomerNote = ` Yangi mijoz "${newCustName.trim()}" qo'shildi.`;
+        newCustomerNote = t('sale.custAdded', { name: newCustName.trim() });
       }
 
       const res = await createSale({
@@ -262,13 +263,15 @@ export default function SavdoPage() {
 
       const debtText =
         payMode === 'DEBT'
-          ? ` To'liq QARZ: ${fmt(totalSum)} so'm.`
+          ? t('sale.fullDebt', { total: fmt(totalSum) })
           : debtAfter > 0.01
-            ? ` Qisman to'landi, qarz: ${fmt(debtAfter)} so'm.`
-            : " To'liq to'landi.";
+            ? t('sale.partialPaid', { debt: fmt(debtAfter) })
+            : t('sale.fullyPaid');
       setMsg({
         ok: true,
-        text: `Savdo saqlandi — ${fmt(totalSum)} so'm.${debtText}${newCustomerNote}`,
+        text: `${t('sale.saved', {
+          total: fmt(totalSum),
+        })}${debtText}${newCustomerNote}`,
       });
       setQuantity('');
       setUnitPrice('');
@@ -282,19 +285,23 @@ export default function SavdoPage() {
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
 
-  if (loading) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (loading) return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+    return (
+      <p className="text-red-600 text-sm">
+        {t('common.errorPrefix', { msg: ts(error.message) })}
+      </p>
+    );
 
   return (
     <div className="grid grid-cols-1 gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Yangi savdo</h1>
+        <h1 className="text-xl font-bold">{t('sale.title')}</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
@@ -302,25 +309,25 @@ export default function SavdoPage() {
         <form onSubmit={onSubmit} className="card p-5 md:p-6 grid gap-5 min-w-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="grid gap-1.5">
-              <span className="field-label">Mijoz (ixtiyoriy)</span>
+              <span className="field-label">{t('sale.customer')}</span>
               <select
                 value={customerId}
                 onChange={(e) => setCustomerId(e.target.value)}
                 className="field-input"
               >
-                <option value="">— Tanlanmagan —</option>
+                <option value="">{t('sale.noCustomer')}</option>
                 {(data?.customers ?? []).map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
                 ))}
-                <option value="__new">➕ Yangi mijoz qo&apos;shish…</option>
+                <option value="__new">{t('sale.newCustomer')}</option>
               </select>
             </label>
 
             {!isLumber && (
               <label className="grid gap-1.5">
-                <span className="field-label">Savdo turi</span>
+                <span className="field-label">{t('sale.saleType')}</span>
                 <select
                   value={saleType}
                   onChange={(e) =>
@@ -328,9 +335,9 @@ export default function SavdoPage() {
                   }
                   className="field-input"
                 >
-                  {SALE_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
+                  {SALE_TYPES.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {t(opt.label)}
                     </option>
                   ))}
                 </select>
@@ -342,17 +349,21 @@ export default function SavdoPage() {
           {customerId === '__new' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border-2 border-brand/30 bg-brand-faint/60 p-4 animate-[fadeIn_.3s_ease]">
               <label className="grid gap-1.5">
-                <span className="field-label text-xs">Mijoz ismi</span>
+                <span className="field-label text-xs">
+                  {t('sale.custName')}
+                </span>
                 <input
                   value={newCustName}
                   onChange={(e) => setNewCustName(e.target.value)}
-                  placeholder="Alisher Karimov"
+                  placeholder={t('sale.custNamePh')}
                   className="field-input !py-2.5"
                   autoFocus
                 />
               </label>
               <label className="grid gap-1.5">
-                <span className="field-label text-xs">Telefon (ixtiyoriy)</span>
+                <span className="field-label text-xs">
+                  {t('sale.custPhone')}
+                </span>
                 <input
                   value={newCustPhone}
                   onChange={(e) => setNewCustPhone(e.target.value)}
@@ -361,15 +372,14 @@ export default function SavdoPage() {
                 />
               </label>
               <p className="sm:col-span-2 text-[11px] text-neutral-500">
-                Savdo saqlanganда mijoz avtomatik yaratiladi va «Mijozlar»
-                sahifasida ko&apos;rinadi.
+                {t('sale.custNote')}
               </p>
             </div>
           )}
 
           <label className="grid gap-1.5">
             <span className="field-label">
-              {isLumber ? 'Tayyor ombordan (mahsulot)' : 'Ombordan (lot)'}
+              {isLumber ? t('sale.fromFinished') : t('sale.fromLot')}
             </span>
             <select
               value={lotId}
@@ -377,29 +387,35 @@ export default function SavdoPage() {
               className="field-input"
             >
               <option value="">
-                {isLumber ? '— Mahsulot tanlang —' : '— Lot tanlang —'}
+                {isLumber ? t('sale.pickProduct') : t('sale.pickLot')}
               </option>
               {isLumber
                 ? finished.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.productName} — qoldiq {fmt(f.quantityRemaining)} dona
-                      · tannarx {fmt(f.unitCostUzsPerPiece)} so&apos;m
+                      {t('sale.finishedOption', {
+                        name: f.productName,
+                        qty: fmt(f.quantityRemaining),
+                        cost: fmt(f.unitCostUzsPerPiece),
+                      })}
                     </option>
                   ))
                 : lots.map((l) => (
                     <option key={l.id} value={l.id}>
-                      {l.woodType} · {l.grade} · {sourceLabel(l.source)} —
-                      qoldiq {fmt(l.volumeM3Remaining, 1)} m³
+                      {t('sale.lotOption', {
+                        wood: l.woodType,
+                        grade: l.grade,
+                        source: label('sale.srcShort', l.source),
+                        vol: fmt(l.volumeM3Remaining, 1),
+                      })}
                       {l.quantityRemaining != null
-                        ? ` · ${fmt(l.quantityRemaining)} dona`
+                        ? ` · ${fmt(l.quantityRemaining)} ${t('common.pcs')}`
                         : ''}
                     </option>
                   ))}
             </select>
             {isLumber && finished.length === 0 && (
               <span className="text-xs text-amber-700">
-                Tayyor mahsulot yo&apos;q — avval «Ishlab chiqarish»da partiya
-                yarating.
+                {t('sale.noFinished')}
               </span>
             )}
           </label>
@@ -407,7 +423,7 @@ export default function SavdoPage() {
           {!isLumber && (
             <fieldset className="grid gap-3">
               <legend className="field-label text-brand font-semibold mb-1.5">
-                O&apos;LCHAM (avtomatik m³ ga aylanadi)
+                {t('sale.dimsLegend')}
               </legend>
 
               {/* Shakl: silindr · konus · taxta */}
@@ -417,22 +433,27 @@ export default function SavdoPage() {
                     {
                       value: 'SILINDR',
                       icon: '🪵',
-                      title: 'Silindr',
-                      desc: 'Ikki uch teng',
+                      title: 'sale.shape.cyl.title',
+                      desc: 'sale.shape.cyl.desc',
                     },
                     {
                       value: 'KONUS',
                       icon: '📐',
-                      title: 'Konus',
-                      desc: 'Ingichkalanadi',
+                      title: 'sale.shape.cone.title',
+                      desc: 'sale.shape.cone.desc',
                     },
                     {
                       value: 'BOX',
                       icon: '🟫',
-                      title: 'Taxta',
-                      desc: 'En × qalinlik',
+                      title: 'sale.shape.box.title',
+                      desc: 'sale.shape.box.desc',
                     },
-                  ] as const
+                  ] as const satisfies readonly {
+                    value: 'SILINDR' | 'KONUS' | 'BOX';
+                    icon: string;
+                    title: MsgKey;
+                    desc: MsgKey;
+                  }[]
                 ).map((s) => (
                   <button
                     key={s.value}
@@ -445,9 +466,11 @@ export default function SavdoPage() {
                     }`}
                   >
                     <span className="text-base">{s.icon}</span>
-                    <span className="block font-semibold text-sm">{s.title}</span>
+                    <span className="block font-semibold text-sm">
+                      {t(s.title)}
+                    </span>
                     <span className="block text-[11px] text-neutral-500">
-                      {s.desc}
+                      {t(s.desc)}
                     </span>
                   </button>
                 ))}
@@ -457,12 +480,12 @@ export default function SavdoPage() {
                 <div className="grid grid-cols-2 gap-3">
                   {(
                     [
-                      ['Diametr ⌀ (sm)', diam, setDiam],
-                      ['Uzunlik (m)', length, setLength],
-                    ] as const
+                      ['pur.calc.diameter', diam, setDiam],
+                      ['pur.calc.length', length, setLength],
+                    ] as DimField[]
                   ).map(([lab, val, set]) => (
                     <label key={lab} className="grid gap-1.5">
-                      <span className="field-label text-xs">{lab}</span>
+                      <span className="field-label text-xs">{t(lab)}</span>
                       <input
                         value={val}
                         onChange={(e) => set(e.target.value)}
@@ -477,13 +500,13 @@ export default function SavdoPage() {
                 <div className="grid grid-cols-3 gap-3">
                   {(
                     [
-                      ['Bosh ⌀ (sm)', baseDiam, setBaseDiam],
-                      ['Uch ⌀ (sm)', topDiam, setTopDiam],
-                      ['Uzunlik (m)', length, setLength],
-                    ] as const
+                      ['pur.calc.base', baseDiam, setBaseDiam],
+                      ['pur.calc.top', topDiam, setTopDiam],
+                      ['pur.calc.length', length, setLength],
+                    ] as DimField[]
                   ).map(([lab, val, set]) => (
                     <label key={lab} className="grid gap-1.5">
-                      <span className="field-label text-xs">{lab}</span>
+                      <span className="field-label text-xs">{t(lab)}</span>
                       <input
                         value={val}
                         onChange={(e) => set(e.target.value)}
@@ -498,13 +521,13 @@ export default function SavdoPage() {
                 <div className="grid grid-cols-3 gap-3">
                   {(
                     [
-                      ['Uzunlik (m)', length, setLength],
-                      ['En (m)', width, setWidth],
-                      ['Qalinlik (m)', thickness, setThickness],
-                    ] as const
+                      ['pur.calc.length', length, setLength],
+                      ['pur.calc.width', width, setWidth],
+                      ['pur.calc.thickness', thickness, setThickness],
+                    ] as DimField[]
                   ).map(([lab, val, set]) => (
                     <label key={lab} className="grid gap-1.5">
-                      <span className="field-label text-xs">{lab}</span>
+                      <span className="field-label text-xs">{t(lab)}</span>
                       <input
                         value={val}
                         onChange={(e) => set(e.target.value)}
@@ -517,10 +540,10 @@ export default function SavdoPage() {
               )}
               {isRound && (
                 <p className="text-[11px] text-neutral-400">
-                  Bir dona ≈ {volPerPiece.toFixed(3)} m³ ·{' '}
-                  {isSilindr
-                    ? 'ikki uchi bir xil yo‘g‘onlik (silindr).'
-                    : 'bosh yo‘g‘on, uch ingichka (kesik konus).'}
+                  {t('sale.perPieceHint', {
+                    vol: volPerPiece.toFixed(3),
+                    shape: isSilindr ? t('sale.cylNote') : t('sale.coneNote'),
+                  })}
                 </p>
               )}
             </fieldset>
@@ -528,7 +551,7 @@ export default function SavdoPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1.5">
-              <span className="field-label">Dona soni</span>
+              <span className="field-label">{t('sale.qty')}</span>
               <input
                 value={quantity}
                 onChange={(e) => setQuantity(formatMoneyInput(e.target.value))}
@@ -539,7 +562,7 @@ export default function SavdoPage() {
             </label>
             <label className="grid gap-1.5">
               <span className="field-label">
-                {perPiece ? 'Narx / dona (so‘m)' : 'Narx / m³ (so‘m)'}
+                {perPiece ? t('sale.pricePerPiece') : t('sale.pricePerM3')}
               </span>
               <input
                 value={unitPrice}
@@ -554,14 +577,29 @@ export default function SavdoPage() {
           {/* ─── TO'LOV ─── */}
           <fieldset className="grid gap-3">
             <legend className="field-label text-brand font-semibold mb-1.5">
-              TO&apos;LOV
+              {t('sale.payLegend')}
             </legend>
             <div className="grid grid-cols-2 gap-3">
               {(
                 [
-                  { value: 'CASH', icon: '💵', title: 'Naqd', desc: "Hozir to'laydi" },
-                  { value: 'DEBT', icon: '📝', title: 'Qarz', desc: "Keyin to'laydi" },
-                ] as const
+                  {
+                    value: 'CASH',
+                    icon: '💵',
+                    title: 'sale.pay.cash.title',
+                    desc: 'sale.pay.cash.desc',
+                  },
+                  {
+                    value: 'DEBT',
+                    icon: '📝',
+                    title: 'sale.pay.debt.title',
+                    desc: 'sale.pay.debt.desc',
+                  },
+                ] as const satisfies readonly {
+                  value: 'CASH' | 'DEBT';
+                  icon: string;
+                  title: MsgKey;
+                  desc: MsgKey;
+                }[]
               ).map((m) => (
                 <button
                   key={m.value}
@@ -574,10 +612,10 @@ export default function SavdoPage() {
                   }`}
                 >
                   <span className="font-semibold text-sm">
-                    {m.icon} {m.title}
+                    {m.icon} {t(m.title)}
                   </span>
                   <span className="block text-[11px] text-neutral-500 mt-0.5">
-                    {m.desc}
+                    {t(m.desc)}
                   </span>
                 </button>
               ))}
@@ -587,7 +625,9 @@ export default function SavdoPage() {
               <div className="grid gap-3 animate-[fadeIn_.3s_ease]">
                 <div className="grid grid-cols-2 gap-3">
                   <label className="grid gap-1.5">
-                    <span className="field-label text-xs">Valyuta</span>
+                    <span className="field-label text-xs">
+                      {t('pay.currency')}
+                    </span>
                     <select
                       value={payCurrency}
                       onChange={(e) =>
@@ -595,14 +635,14 @@ export default function SavdoPage() {
                       }
                       className="field-input"
                     >
-                      <option value="UZS">so&apos;m</option>
+                      <option value="UZS">{t('common.som')}</option>
                       <option value="USD">USD ($)</option>
                     </select>
                   </label>
                   {payCurrency === 'USD' && (
                     <label className="grid gap-1.5">
                       <span className="field-label text-xs">
-                        Kurs (1 USD = ? so&apos;m)
+                        {t('pay.rate')}
                       </span>
                       <input
                         value={usdRate}
@@ -617,17 +657,15 @@ export default function SavdoPage() {
 
                 {payCurrency === 'UZS' ? (
                   <p className="text-xs text-neutral-500 bg-neutral-50 border border-neutral-100 rounded-lg px-3 py-2">
-                    Jami summa (
-                    <b className="tabular-nums">
-                      {totalSum > 0 ? fmt(totalSum) : 0} so&apos;m
-                    </b>
-                    ) to&apos;liq naqd sifatida yoziladi.
+                    {t('sale.allCash', {
+                      total: totalSum > 0 ? fmt(totalSum) : 0,
+                    })}
                   </p>
                 ) : (
                   <div className="grid gap-2">
                     <label className="grid gap-1.5">
                       <span className="field-label text-xs">
-                        Qabul qilingan USD
+                        {t('sale.usdReceived')}
                       </span>
                       <input
                         value={usdAmount}
@@ -647,12 +685,13 @@ export default function SavdoPage() {
                             : 'text-neutral-500 bg-neutral-50 border-neutral-100'
                         }`}
                       >
-                        = <b className="tabular-nums">{fmt(usdInUzs)}</b> so&apos;m
+                        = <b className="tabular-nums">{fmt(usdInUzs)}</b>{' '}
+                        {t('common.som')}
                         {overPaid
-                          ? ` — jami summadan (${fmt(totalSum)}) oshib ketdi!`
+                          ? t('sale.overPaid', { total: fmt(totalSum) })
                           : debtAfter > 0.01
-                            ? ` · qolgan QARZ: ${fmt(debtAfter)} so'm`
-                            : " · to'liq qoplaydi"}
+                            ? t('sale.remainingDebt', { debt: fmt(debtAfter) })
+                            : t('sale.coversAll')}
                       </p>
                     )}
                   </div>
@@ -674,34 +713,38 @@ export default function SavdoPage() {
           )}
 
           <button disabled={!canSubmit} className="btn-primary">
-            {saving ? 'Saqlanmoqda…' : 'Savdoni saqlash'}
+            {saving ? t('common.saving') : t('sale.submit')}
           </button>
         </form>
 
         {/* ─── JONLI HISOB PANELI ─── */}
         <aside className="bg-brand-faint border border-brand/20 rounded-2xl p-5 grid gap-3 lg:sticky lg:top-20 min-w-0">
           <h2 className="text-sm font-bold text-brand tracking-wide">
-            Tizim avtomatik hisoblaydi
+            {t('sale.panelTitle')}
           </h2>
           <dl className="grid gap-2.5 text-sm">
             {!isLumber && (
               <>
                 <div className="flex justify-between">
-                  <dt className="text-neutral-500">Bir dona hajmi</dt>
+                  <dt className="text-neutral-500">
+                    {t('sale.volPerPiece')}
+                  </dt>
                   <dd className="font-semibold tabular-nums">
                     {volPerPiece > 0 ? volPerPiece.toFixed(4) : '—'} m³
                   </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-neutral-500">
-                    Jami hajm {qty > 0 ? `(${fmt(qty)} dona)` : ''}
+                    {qty > 0
+                      ? t('sale.totalVolQty', { n: fmt(qty) })
+                      : t('sale.totalVol')}
                   </dt>
                   <dd className="font-semibold tabular-nums">
                     {totalVol > 0 ? totalVol.toFixed(2) : '—'} m³
                   </dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-neutral-500">Ombordan yechiladi</dt>
+                  <dt className="text-neutral-500">{t('sale.deducted')}</dt>
                   <dd className="font-semibold tabular-nums text-red-600">
                     {totalVol > 0 ? `−${totalVol.toFixed(2)}` : '—'} m³
                   </dd>
@@ -710,7 +753,7 @@ export default function SavdoPage() {
             )}
             {isLumber && (
               <div className="flex justify-between">
-                <dt className="text-neutral-500">Sotiladigan dona</dt>
+                <dt className="text-neutral-500">{t('sale.piecesSold')}</dt>
                 <dd className="font-semibold tabular-nums">
                   {qty > 0 ? fmt(qty) : '—'}
                 </dd>
@@ -718,7 +761,7 @@ export default function SavdoPage() {
             )}
             {remainingPieces !== null && (
               <div className="flex justify-between">
-                <dt className="text-neutral-500">Qolgan dona</dt>
+                <dt className="text-neutral-500">{t('sale.piecesLeft')}</dt>
                 <dd
                   className={`font-semibold tabular-nums ${
                     exceedsPieces ? 'text-red-600' : ''
@@ -730,7 +773,7 @@ export default function SavdoPage() {
             )}
             {!isLumber && (
               <div className="flex justify-between border-b border-brand/10 pb-2.5">
-                <dt className="text-neutral-500">Qolgan qoldiq</dt>
+                <dt className="text-neutral-500">{t('sale.volLeft')}</dt>
                 <dd
                   className={`font-semibold tabular-nums ${
                     exceeds ? 'text-red-600' : ''
@@ -744,42 +787,47 @@ export default function SavdoPage() {
 
           {exceedsPieces && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-              ⚠ Omborda dona yetarli emas! Qoldiq:{' '}
-              {isLumber ? fLot?.quantityRemaining : lot?.quantityRemaining} dona
+              {t('sale.exceedsPieces', {
+                qty:
+                  (isLumber ? fLot?.quantityRemaining : lot?.quantityRemaining) ??
+                  0,
+              })}
             </p>
           )}
           {exceeds && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-              ⚠ Omborda yetarli emas! Lot qoldig&apos;i:{' '}
-              {lot ? fmt(lot.volumeM3Remaining, 1) : 0} m³
+              {t('sale.exceedsVol', {
+                vol: lot ? fmt(lot.volumeM3Remaining, 1) : 0,
+              })}
             </p>
           )}
 
           <div className="bg-white rounded-xl p-4 border border-brand/15">
             <div className="text-[11px] tracking-wider text-neutral-400 font-semibold">
-              JAMI SAVDO
+              {t('sale.grandTotal')}
             </div>
             <div className="text-2xl font-bold tabular-nums mt-0.5">
               {totalSum > 0 ? fmt(totalSum) : '0'}{' '}
               <span className="text-sm font-medium text-neutral-400">
-                so&apos;m
+                {t('common.som')}
               </span>
             </div>
             {payMode === 'DEBT' && totalSum > 0 && (
               <div className="text-[11px] font-semibold text-amber-700 mt-1">
-                📝 To&apos;liq qarzga yoziladi
+                {t('sale.allDebtNote')}
               </div>
             )}
             {payMode === 'CASH' && totalSum > 0 && (
               <div className="text-[11px] font-semibold text-emerald-700 mt-1">
-                💵 Naqd: {fmt(cashUzs)} so&apos;m
-                {debtAfter > 0.01 ? ` · qarz: ${fmt(debtAfter)}` : ''}
+                {t('sale.cashNote', { amount: fmt(cashUzs) })}
+                {debtAfter > 0.01
+                  ? t('sale.cashDebtNote', { debt: fmt(debtAfter) })
+                  : ''}
               </div>
             )}
           </div>
           <p className="text-[11px] text-neutral-400 leading-relaxed">
-            Narx doim so&apos;mda qoladi — USD faqat to&apos;lov sifatida, kurs
-            bilan so&apos;mga aylantiriladi.
+            {t('sale.footnote')}
           </p>
         </aside>
       </div>
@@ -787,22 +835,30 @@ export default function SavdoPage() {
       {/* ─── SAVDOLAR RO'YXATI ─── */}
       <section className="card">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
-          So&apos;nggi savdolar
+          {t('sale.recent')}
         </h2>
         {(data?.sales ?? []).length === 0 ? (
-          <p className="px-5 py-6 text-sm text-neutral-500">
-            Hozircha savdo yo&apos;q.
-          </p>
+          <p className="px-5 py-6 text-sm text-neutral-500">{t('sale.empty')}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[11px] tracking-wider text-neutral-400 border-b border-neutral-100">
-                  <th className="px-5 py-2.5 font-semibold">SANA</th>
-                  <th className="px-5 py-2.5 font-semibold">TURI</th>
-                  <th className="px-5 py-2.5 font-semibold text-right">HAJM/DONA</th>
-                  <th className="px-5 py-2.5 font-semibold text-right">SUMMA</th>
-                  <th className="px-5 py-2.5 font-semibold text-right">HOLAT</th>
+                  <th className="px-5 py-2.5 font-semibold">
+                    {t('sale.col.date')}
+                  </th>
+                  <th className="px-5 py-2.5 font-semibold">
+                    {t('sale.col.type')}
+                  </th>
+                  <th className="px-5 py-2.5 font-semibold text-right">
+                    {t('sale.col.volQty')}
+                  </th>
+                  <th className="px-5 py-2.5 font-semibold text-right">
+                    {t('sale.col.amount')}
+                  </th>
+                  <th className="px-5 py-2.5 font-semibold text-right">
+                    {t('sale.col.status')}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-50">
@@ -812,14 +868,15 @@ export default function SavdoPage() {
                   return (
                     <tr key={s.id}>
                       <td className="px-5 py-3 text-neutral-500">
-                        {new Date(s.date).toLocaleDateString('uz-UZ')}
+                        {dateFmt(s.date)}
                       </td>
                       <td className="px-5 py-3">
-                        {SALE_TYPES.find((t) => t.value === s.saleType)?.label ??
-                          s.saleType}
+                        {label('sale.type', s.saleType)}
                       </td>
                       <td className="px-5 py-3 text-right tabular-nums">
-                        {vol > 0 ? `${vol.toFixed(1)} m³` : `${fmt(pcs)} dona`}
+                        {vol > 0
+                          ? `${vol.toFixed(1)} m³`
+                          : `${fmt(pcs)} ${t('common.pcs')}`}
                       </td>
                       <td className="px-5 py-3 text-right tabular-nums font-semibold">
                         {fmt(s.totalPriceUzs)}
@@ -827,11 +884,11 @@ export default function SavdoPage() {
                       <td className="px-5 py-3 text-right">
                         {s.debtUzs > 0 ? (
                           <span className="text-[11px] font-medium bg-amber-100 text-amber-700 rounded-full px-2.5 py-1">
-                            Qarz {fmt(s.debtUzs)}
+                            {t('sale.debtBadge', { amount: fmt(s.debtUzs) })}
                           </span>
                         ) : (
                           <span className="text-[11px] font-medium bg-emerald-100 text-emerald-700 rounded-full px-2.5 py-1">
-                            To&apos;landi
+                            {t('term.paid')}
                           </span>
                         )}
                       </td>

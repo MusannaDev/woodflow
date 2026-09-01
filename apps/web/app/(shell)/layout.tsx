@@ -3,7 +3,10 @@
 import { useQuery } from '@apollo/client';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect, useState } from 'react';
+import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 import { NotificationBell } from '../../components/NotificationBell';
+import { useI18n, TFunc } from '../../lib/i18n';
+import { MsgKey } from '../../lib/i18n/messages';
 import {
   PENDING_PLATFORM_PAYMENTS,
   PLATFORM_STATS,
@@ -21,55 +24,55 @@ import {
  * almashtirgich bilan) + Instagram-uslub pastki tab-bar + "Ko'proq" sheet.
  */
 
-type MenuItem = { href: string; label: string; icon: string };
+type MenuItem = { href: string; label: MsgKey; icon: string };
 
 const SHARED_TAIL: MenuItem[] = [
-  { href: '/tolovlar', label: "To'lovlar", icon: '◇' },
-  { href: '/transfer', label: 'Ichki transfer', icon: '⇄' },
-  { href: '/mijozlar', label: 'Mijozlar', icon: '◎' },
-  { href: '/xarajatlar', label: 'Xarajatlar', icon: '◈' },
-  { href: '/ishchilar', label: 'Ishchilar', icon: '♟' },
-  { href: '/oylik', label: 'Oylik', icon: '💵' },
-  { href: '/konsolidatsiya', label: 'Konsolidatsiya', icon: '◆' },
+  { href: '/tolovlar', label: 'nav.tolovlar', icon: '◇' },
+  { href: '/transfer', label: 'nav.transfer', icon: '⇄' },
+  { href: '/mijozlar', label: 'nav.mijozlar', icon: '◎' },
+  { href: '/xarajatlar', label: 'nav.xarajatlar', icon: '◈' },
+  { href: '/ishchilar', label: 'nav.ishchilar', icon: '♟' },
+  { href: '/oylik', label: 'nav.oylik', icon: '💵' },
+  { href: '/konsolidatsiya', label: 'nav.konsolidatsiya', icon: '◆' },
 ];
 
 const MENU_WOOD: MenuItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: '▦' },
-  { href: '/furalar', label: 'Furalar', icon: '▤' },
-  { href: '/kirim', label: 'Kirim', icon: '⬇' },
-  { href: '/ombor', label: 'Ombor', icon: '▣' },
-  { href: '/savdo', label: 'Savdo', icon: '◉' },
+  { href: '/dashboard', label: 'nav.dashboard', icon: '▦' },
+  { href: '/furalar', label: 'nav.furalar', icon: '▤' },
+  { href: '/kirim', label: 'nav.kirim', icon: '⬇' },
+  { href: '/ombor', label: 'nav.ombor', icon: '▣' },
+  { href: '/savdo', label: 'nav.savdo', icon: '◉' },
   ...SHARED_TAIL,
 ];
 
 const MENU_LUMBER: MenuItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: '▦' },
-  { href: '/ishlab-chiqarish', label: 'Ishlab chiqarish', icon: '⚙' },
-  { href: '/shablonlar', label: 'Shablonlar', icon: '▱' },
-  { href: '/tayyor-ombor', label: 'Tayyor ombor', icon: '▥' },
-  { href: '/ombor', label: 'Xomashyo ombori', icon: '▣' },
-  { href: '/savdo', label: 'Savdo', icon: '◉' },
+  { href: '/dashboard', label: 'nav.dashboard', icon: '▦' },
+  { href: '/ishlab-chiqarish', label: 'nav.ishlabChiqarish', icon: '⚙' },
+  { href: '/shablonlar', label: 'nav.shablonlar', icon: '▱' },
+  { href: '/tayyor-ombor', label: 'nav.tayyorOmbor', icon: '▥' },
+  { href: '/ombor', label: 'nav.omborRaw', icon: '▣' },
+  { href: '/savdo', label: 'nav.savdo', icon: '◉' },
   ...SHARED_TAIL,
 ];
 
 /** Mobil pastki tab-bar (Instagram-uslub): 2 + markaziy Savdo + 1 + Ko'proq. */
 const TABS_WOOD: MenuItem[] = [
-  { href: '/dashboard', label: 'Asosiy', icon: '▦' },
-  { href: '/ombor', label: 'Ombor', icon: '▣' },
-  { href: '/savdo', label: 'Savdo', icon: '+' }, // markaziy tugma
-  { href: '/tolovlar', label: "To'lov", icon: '◇' },
+  { href: '/dashboard', label: 'nav.tab.home', icon: '▦' },
+  { href: '/ombor', label: 'nav.tab.ombor', icon: '▣' },
+  { href: '/savdo', label: 'nav.tab.savdo', icon: '+' }, // markaziy tugma
+  { href: '/tolovlar', label: 'nav.tab.tolov', icon: '◇' },
 ];
 const TABS_LUMBER: MenuItem[] = [
-  { href: '/dashboard', label: 'Asosiy', icon: '▦' },
-  { href: '/ishlab-chiqarish', label: 'Ishlab ch.', icon: '⚙' },
-  { href: '/savdo', label: 'Savdo', icon: '+' },
-  { href: '/tayyor-ombor', label: 'Tayyor', icon: '▥' },
+  { href: '/dashboard', label: 'nav.tab.home', icon: '▦' },
+  { href: '/ishlab-chiqarish', label: 'nav.tab.prod', icon: '⚙' },
+  { href: '/savdo', label: 'nav.tab.savdo', icon: '+' },
+  { href: '/tayyor-ombor', label: 'nav.tab.tayyor', icon: '▥' },
 ];
 const TABS_WORKER: MenuItem[] = [
-  { href: '/dashboard', label: 'Asosiy', icon: '▦' },
-  { href: '/ombor', label: 'Ombor', icon: '▣' },
-  { href: '/savdo', label: 'Savdo', icon: '+' },
-  { href: '/mijozlar', label: 'Mijozlar', icon: '◎' },
+  { href: '/dashboard', label: 'nav.tab.home', icon: '▦' },
+  { href: '/ombor', label: 'nav.tab.ombor', icon: '▣' },
+  { href: '/savdo', label: 'nav.tab.savdo', icon: '+' },
+  { href: '/mijozlar', label: 'nav.tab.mijozlar', icon: '◎' },
 ];
 
 /** WORKER (ishchi) ko'ra oladigan sahifalar — qolganlari yashirin. */
@@ -84,6 +87,7 @@ const WORKER_ALLOWED = new Set([
 ]);
 
 export default function ShellLayout({ children }: { children: ReactNode }) {
+  const { t } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
   const [ws, setWs] = useState<WorkspaceBrief | null>(null);
@@ -180,17 +184,17 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
       : [
           ...menu.filter((m) => m.href !== '/konsolidatsiya' || isOwner),
           ...(isOwner
-            ? [
-                { href: '/obuna', label: 'Obuna', icon: '💳' },
-                { href: '/sozlamalar', label: 'Sozlamalar', icon: '⚙' },
-              ]
+            ? ([
+                { href: '/obuna', label: 'nav.obuna', icon: '💳' },
+                { href: '/sozlamalar', label: 'nav.sozlamalar', icon: '⚙' },
+              ] as MenuItem[])
             : []),
         ]
   ).filter((m) => m.href !== '/transfer' || hasBoth);
 
   // Obuna bloklangan bo'lsa — faqat Obuna sahifasi ko'rinadi
-  const visibleMenu = biz?.blocked
-    ? [{ href: '/obuna', label: 'Obuna', icon: '💳' }]
+  const visibleMenu: MenuItem[] = biz?.blocked
+    ? [{ href: '/obuna', label: 'nav.obuna', icon: '💳' }]
     : fullMenu;
 
   const tabs = isWorker
@@ -287,20 +291,23 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
               }`}
             >
               <span className="opacity-70 w-4 text-center">{m.icon}</span>
-              {m.label}
+              {t(m.label)}
             </a>
           ))}
         </nav>
 
         <div className="px-5 py-4 mt-2 border-t border-white/10 text-sm">
           <div className="text-white">{session.userName()}</div>
-          <div className="text-xs text-white/40">{ws.role}</div>
-          <button
-            onClick={logout}
-            className="mt-2 text-xs text-white/50 hover:text-white transition-colors"
-          >
-            Chiqish →
-          </button>
+          <div className="text-xs text-white/40">{roleLabel(ws.role, t)}</div>
+          <div className="mt-2.5 flex items-center gap-2">
+            <LanguageSwitcher variant="dark" />
+            <button
+              onClick={logout}
+              className="text-xs text-white/50 hover:text-white transition-colors"
+            >
+              {t('common.logoutArrow')}
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -314,14 +321,15 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
           </span>
           <span className="ml-auto text-xs text-emerald-600 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
-            Onlayn
+            {t('common.online')}
           </span>
+          <LanguageSwitcher />
           <NotificationBell />
           <button
             onClick={logout}
             className="text-xs font-semibold text-neutral-500 hover:text-red-600 border border-neutral-200 hover:border-red-200 rounded-lg px-3 py-1.5 transition-colors"
           >
-            Chiqish →
+            {t('common.logoutArrow')}
           </button>
         </header>
 
@@ -358,13 +366,14 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
               </div>
             )}
           </div>
+          <LanguageSwitcher />
           <NotificationBell />
           <button
             onClick={logout}
-            aria-label="Chiqish"
+            aria-label={t('common.logout')}
             className="flex items-center gap-1 text-[11px] font-semibold text-neutral-500 hover:text-red-600 border border-neutral-200 rounded-lg px-2 py-1.5 transition-colors flex-none"
           >
-            Chiqish
+            {t('common.logout')}
           </button>
         </header>
 
@@ -392,7 +401,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
               {tabs[2].icon}
             </span>
             <span className="text-[10px] mt-1 text-white/70 font-medium">
-              {tabs[2].label}
+              {t(tabs[2].label)}
             </span>
           </a>
 
@@ -403,7 +412,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
             className="flex flex-col items-center gap-1 py-1.5 text-white/60 hover:text-white transition-colors"
           >
             <span className="text-lg leading-none">☰</span>
-            <span className="text-[10px] font-medium">Ko&apos;proq</span>
+            <span className="text-[10px] font-medium">{t('common.more')}</span>
           </button>
         </div>
       </nav>
@@ -412,7 +421,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
       {moreOpen && (
         <div className="md:hidden fixed inset-0 z-50">
           <button
-            aria-label="Yopish"
+            aria-label={t('common.close')}
             onClick={() => setMoreOpen(false)}
             className="absolute inset-0 bg-black/35 backdrop-blur-sm"
           />
@@ -452,7 +461,7 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
                 >
                   <span className="text-lg leading-none">{m.icon}</span>
                   <span className="text-[11px] font-medium leading-tight">
-                    {m.label}
+                    {t(m.label)}
                   </span>
                 </a>
               ))}
@@ -466,13 +475,16 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
                 <span className="block text-sm font-semibold truncate">
                   {session.userName()}
                 </span>
-                <span className="block text-xs text-neutral-400">{ws.role}</span>
+                <span className="block text-xs text-neutral-400">
+                  {roleLabel(ws.role, t)}
+                </span>
               </span>
+              <LanguageSwitcher />
               <button
                 onClick={logout}
                 className="text-sm font-medium text-red-500 hover:text-red-600 transition-colors"
               >
-                Chiqish →
+                {t('common.logoutArrow')}
               </button>
             </div>
           </div>
@@ -482,14 +494,25 @@ export default function ShellLayout({ children }: { children: ReactNode }) {
   );
 }
 
-const CEO_NAV: { href: string; label: string; icon: string; badge?: 'req' | 'pay' }[] =
-  [
-    { href: '/ceo', label: 'Umumiy', icon: '▦' },
-    { href: '/ceo/sorovlar', label: "So'rovlar", icon: '🔔', badge: 'req' },
-    { href: '/ceo/tolovlar', label: "To'lovlar", icon: '💳', badge: 'pay' },
-    { href: '/ceo/ownerlar', label: 'Ownerlar', icon: '👑' },
-    { href: '/ceo/foydalanuvchilar', label: 'Foydalanuvchilar', icon: '👥' },
-  ];
+const CEO_NAV: {
+  href: string;
+  label: MsgKey;
+  icon: string;
+  badge?: 'req' | 'pay';
+}[] = [
+  { href: '/ceo', label: 'nav.ceo.umumiy', icon: '▦' },
+  { href: '/ceo/sorovlar', label: 'nav.ceo.sorovlar', icon: '🔔', badge: 'req' },
+  { href: '/ceo/tolovlar', label: 'nav.ceo.tolovlar', icon: '💳', badge: 'pay' },
+  { href: '/ceo/ownerlar', label: 'nav.ceo.ownerlar', icon: '👑' },
+  { href: '/ceo/foydalanuvchilar', label: 'nav.ceo.users', icon: '👥' },
+];
+
+/** Makon roli — tarjima qilingan nom (noma'lum rol o'zi ko'rinadi). */
+function roleLabel(role: string, t: TFunc): string {
+  const key = `common.role.${role}` as MsgKey;
+  const label = t(key);
+  return label === key ? role : label;
+}
 
 const ceoActive = (href: string, pathname: string) =>
   href === '/ceo' ? pathname === '/ceo' : pathname.startsWith(href);
@@ -504,6 +527,7 @@ function CeoShell({
   onLogout: () => void;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const stats = useQuery<{ platformStats: { pendingCount: number } }>(
     PLATFORM_STATS,
@@ -565,7 +589,7 @@ function CeoShell({
               }`}
             >
               <span className="opacity-80 w-4 text-center">{m.icon}</span>
-              {m.label}
+              {t(m.label)}
               {m.badge && <Badge n={counts[m.badge]} />}
             </a>
           ))}
@@ -573,13 +597,16 @@ function CeoShell({
 
         <div className="px-5 py-4 mt-2 border-t border-white/10 text-sm">
           <div className="text-white truncate">{name}</div>
-          <div className="text-xs text-white/40">Platforma egasi</div>
-          <button
-            onClick={onLogout}
-            className="mt-2 text-xs text-white/50 hover:text-white transition-colors"
-          >
-            Chiqish →
-          </button>
+          <div className="text-xs text-white/40">{t('nav.ceo.platformOwner')}</div>
+          <div className="mt-2.5 flex items-center gap-2">
+            <LanguageSwitcher variant="dark" />
+            <button
+              onClick={onLogout}
+              className="text-xs text-white/50 hover:text-white transition-colors"
+            >
+              {t('common.logoutArrow')}
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -598,12 +625,13 @@ function CeoShell({
               <span className="truncate text-sm">RS · CEO</span>
             </span>
             <div className="ml-auto flex items-center gap-2">
+              <LanguageSwitcher />
               <NotificationBell />
               <button
                 onClick={onLogout}
                 className="text-[11px] font-semibold text-neutral-500 hover:text-red-600 border border-neutral-200 rounded-lg px-2 py-1.5 flex-none"
               >
-                Chiqish
+                {t('common.logout')}
               </button>
             </div>
           </div>
@@ -619,7 +647,7 @@ function CeoShell({
                 }`}
               >
                 <span>{m.icon}</span>
-                {m.label}
+                {t(m.label)}
                 {m.badge && counts[m.badge] > 0 && (
                   <span className="text-[11px] font-bold bg-amber-100 text-amber-700 rounded-full px-1.5 leading-none">
                     {counts[m.badge]}
@@ -632,12 +660,13 @@ function CeoShell({
 
         <header className="hidden md:flex glass rounded-2xl mx-6 mt-3 px-5 py-3 items-center gap-3 sticky top-3 z-30">
           <span className="text-sm font-semibold flex items-center gap-2">
-            <span className="text-amber-500">⭑</span> CEO Panel
+            <span className="text-amber-500">⭑</span> {t('nav.ceo.panel')}
           </span>
           <span className="ml-auto text-xs text-emerald-600 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
-            Onlayn
+            {t('common.online')}
           </span>
+          <LanguageSwitcher />
           <NotificationBell />
         </header>
         <main className="p-4 sm:p-6 animate-[fadeIn_.35s_ease] max-w-5xl w-full mx-auto">
@@ -650,6 +679,8 @@ function CeoShell({
 
 /** Mobil tab elementi. */
 function MobTab({ item, active }: { item: MenuItem; active: boolean }) {
+  const { t } = useI18n();
+
   return (
     <a
       href={item.href}
@@ -658,7 +689,7 @@ function MobTab({ item, active }: { item: MenuItem; active: boolean }) {
       }`}
     >
       <span className="text-lg leading-none">{item.icon}</span>
-      <span className="text-[10px] font-medium">{item.label}</span>
+      <span className="text-[10px] font-medium">{t(item.label)}</span>
       {active && <span className="w-1 h-1 rounded-full bg-brand -mt-0.5" />}
     </a>
   );

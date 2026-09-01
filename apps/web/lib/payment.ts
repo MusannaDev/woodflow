@@ -1,3 +1,5 @@
+import { MsgKey } from './i18n/messages';
+
 /**
  * Platforma to'lov sozlamalari.
  *
@@ -13,7 +15,8 @@ export const PAYMENT_INFO = {
 
 export interface Plan {
   months: number;
-  title: string;
+  /** Sarlavha lug'at kaliti — ikkala tilda ko'rinadi. */
+  titleKey: MsgKey;
   priceUzs: number;
   oldPriceUzs?: number; // eski narx (chizib tashlanadi) — ixtiyoriy
   discount?: string; // masalan "16%" — ixtiyoriy
@@ -24,12 +27,12 @@ export interface Plan {
 export const PLANS: Plan[] = [
   {
     months: 1,
-    title: '1 oylik',
+    titleKey: 'plan.1',
     priceUzs: 99_000,
   },
   {
     months: 3,
-    title: '3 oylik',
+    titleKey: 'plan.3',
     priceUzs: 249_000,
     oldPriceUzs: 297_000,
     discount: '16%',
@@ -37,14 +40,14 @@ export const PLANS: Plan[] = [
   },
   {
     months: 6,
-    title: '6 oylik',
+    titleKey: 'plan.6',
     priceUzs: 499_000,
     oldPriceUzs: 594_000,
     discount: '16%',
   },
   {
     months: 12,
-    title: '12 oylik',
+    titleKey: 'plan.12',
     priceUzs: 899_000,
     oldPriceUzs: 1_188_000,
     discount: '24%',

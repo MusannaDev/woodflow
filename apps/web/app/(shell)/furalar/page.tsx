@@ -7,7 +7,8 @@ import {
   SHIPMENTS_PAGE,
   SHIPMENT_PNL,
 } from '../../../lib/queries';
-import { formatMoneyInput, parseMoney } from '../../../lib/format';
+import { dateFmt, formatMoneyInput, mln, parseMoney } from '../../../lib/format';
+import { useI18n } from '../../../lib/i18n';
 
 /**
  * Furalar (UI hujjati §7.1): chapda ro'yxat, o'ngda tanlangan furaning
@@ -37,11 +38,6 @@ interface Pnl {
   defectVolumeM3: number;
 }
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 }).format(n);
-const mln = (n: number) =>
-  Math.abs(n) >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} mln` : fmt(n);
-
 const COLOR_DOTS: Record<string, string> = {
   qora: 'bg-neutral-800',
   oq: 'bg-neutral-200 border border-neutral-300',
@@ -53,6 +49,7 @@ const COLOR_DOTS: Record<string, string> = {
 };
 
 export default function FuralarPage() {
+  const { t, ts } = useI18n();
   const { data, loading, error, refetch } =
     useQuery<{ shipments: ShipmentRow[] }>(SHIPMENTS_PAGE);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -102,7 +99,7 @@ export default function FuralarPage() {
       });
       setMsg({
         ok: true,
-        text: `Fura ${res.data.createShipment.truckNumber} qo'shildi.`,
+        text: t('shp.added', { number: res.data.createShipment.truckNumber }),
       });
       setShowForm(false);
       setTruckNumber('');
@@ -114,14 +111,18 @@ export default function FuralarPage() {
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
 
-  if (loading) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (loading) return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+    return (
+      <p className="text-red-600 text-sm">
+        {t('common.errorPrefix', { msg: ts(error.message) })}
+      </p>
+    );
 
   const pnl = pnlData?.shipmentPnl;
   const selected = shipments.find((s) => s.id === selectedId);
@@ -129,12 +130,12 @@ export default function FuralarPage() {
   return (
     <div className="grid grid-cols-1 gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Furalar</h1>
+        <h1 className="text-xl font-bold">{t('shp.title')}</h1>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="rounded-xl bg-brand text-white px-4 py-2.5 text-sm font-semibold hover:opacity-90 transition-opacity"
         >
-          {showForm ? 'Bekor qilish' : '+ Yangi fura'}
+          {showForm ? t('common.cancel') : t('shp.new')}
         </button>
       </div>
 
@@ -157,34 +158,34 @@ export default function FuralarPage() {
           className="card p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-[fadeIn_.3s_ease]"
         >
           <label className="grid gap-1.5">
-            <span className="field-label">Fura nomeri</span>
+            <span className="field-label">{t('shp.number')}</span>
             <input
               value={truckNumber}
               onChange={(e) => setTruckNumber(e.target.value)}
-              placeholder="AA777BB"
+              placeholder={t('shp.numberPh')}
               className="field-input"
             />
           </label>
           <label className="grid gap-1.5">
-            <span className="field-label">Rangi</span>
+            <span className="field-label">{t('shp.color')}</span>
             <input
               value={truckColor}
               onChange={(e) => setTruckColor(e.target.value)}
-              placeholder="qora"
+              placeholder={t('shp.colorPh')}
               className="field-input"
             />
           </label>
           <label className="grid gap-1.5">
-            <span className="field-label">Ega ismi</span>
+            <span className="field-label">{t('shp.ownerName')}</span>
             <input
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
-              placeholder="Ravshan"
+              placeholder={t('shp.ownerNamePh')}
               className="field-input"
             />
           </label>
           <label className="grid gap-1.5">
-            <span className="field-label">Ega telefoni</span>
+            <span className="field-label">{t('shp.ownerPhone')}</span>
             <input
               value={ownerPhone}
               onChange={(e) => setOwnerPhone(e.target.value)}
@@ -193,22 +194,22 @@ export default function FuralarPage() {
             />
           </label>
           <label className="grid gap-1.5">
-            <span className="field-label">Transport xarajati (so&apos;m)</span>
+            <span className="field-label">{t('shp.transport')}</span>
             <input
               value={transportCost}
               onChange={(e) => setTransportCost(formatMoneyInput(e.target.value))}
               inputMode="numeric"
-              placeholder="4 000 000"
+              placeholder={t('shp.transportPh')}
               className="field-input"
             />
           </label>
           <label className="grid gap-1.5">
-            <span className="field-label">Bojxona (so&apos;m)</span>
+            <span className="field-label">{t('shp.customs')}</span>
             <input
               value={customsCost}
               onChange={(e) => setCustomsCost(formatMoneyInput(e.target.value))}
               inputMode="numeric"
-              placeholder="500 000"
+              placeholder={t('shp.customsPh')}
               className="field-input"
             />
           </label>
@@ -217,7 +218,7 @@ export default function FuralarPage() {
               disabled={saving || !truckNumber.trim() || !ownerName.trim()}
               className="btn-primary sm:max-w-xs"
             >
-              {saving ? 'Saqlanmoqda…' : 'Furani saqlash'}
+              {saving ? t('common.saving') : t('shp.submit')}
             </button>
           </div>
         </form>
@@ -228,7 +229,7 @@ export default function FuralarPage() {
         <section className="card overflow-hidden">
           {shipments.length === 0 ? (
             <p className="px-5 py-8 text-sm text-neutral-500 text-center">
-              Hozircha fura yo&apos;q — «+ Yangi fura» bilan qo&apos;shing.
+              {t('shp.empty')}
             </p>
           ) : (
             <ul className="divide-y divide-neutral-50">
@@ -261,7 +262,7 @@ export default function FuralarPage() {
                         </span>
                       </span>
                       <span className="text-xs text-neutral-400">
-                        {new Date(s.arrivalDate).toLocaleDateString('uz-UZ')}
+                        {dateFmt(s.arrivalDate)}
                       </span>
                       {active && <span className="text-brand">→</span>}
                     </button>
@@ -275,14 +276,14 @@ export default function FuralarPage() {
         {/* ─── P&L panel ─── */}
         <aside className="card p-5 lg:sticky lg:top-20">
           {!selected ? (
-            <p className="text-sm text-neutral-500">Fura tanlang.</p>
+            <p className="text-sm text-neutral-500">{t('shp.pickOne')}</p>
           ) : pnlLoading || !pnl ? (
-            <p className="text-sm text-neutral-500">P&L hisoblanmoqda…</p>
+            <p className="text-sm text-neutral-500">{t('shp.pnlLoading')}</p>
           ) : (
             <div className="grid gap-4">
               <div>
                 <h2 className="font-bold">
-                  Fura {pnl.truckNumber}
+                  {t('shp.heading', { number: pnl.truckNumber })}
                   {selected.truckColor && (
                     <span className="ml-2 text-sm font-normal text-neutral-400">
                       · {selected.truckColor}
@@ -290,45 +291,51 @@ export default function FuralarPage() {
                   )}
                 </h2>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                  Ega: {selected.ownerName}
+                  {t('shp.owner', { name: selected.ownerName })}
                   {selected.ownerPhone ? ` · ${selected.ownerPhone}` : ''}
                 </p>
               </div>
 
               <div>
                 <h3 className="text-[11px] tracking-wider font-bold text-brand">
-                  FOYDA HISOBI (P&L)
+                  {t('shp.pnlTitle')}
                 </h3>
                 <dl className="grid gap-2 mt-3 text-sm">
                   <div className="flex justify-between">
                     <dt className="text-neutral-500">
-                      Sotilgan yog&apos;och ({pnl.soldVolumeM3.toFixed(1)} m³)
+                      {t('shp.soldWood', {
+                        vol: pnl.soldVolumeM3.toFixed(1),
+                      })}
                     </dt>
                     <dd className="font-semibold tabular-nums text-emerald-600">
                       +{mln(pnl.salesUzs)}
                     </dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-neutral-500">Yog&apos;och tannarxi</dt>
+                    <dt className="text-neutral-500">{t('shp.woodCost')}</dt>
                     <dd className="font-semibold tabular-nums text-red-600">
                       −{mln(pnl.soldCostUzs)}
                     </dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-neutral-500">Transport</dt>
+                    <dt className="text-neutral-500">
+                      {t('shp.transportRow')}
+                    </dt>
                     <dd className="font-semibold tabular-nums text-red-600">
                       −{mln(pnl.transportUzs)}
                     </dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-neutral-500">Bojxona</dt>
+                    <dt className="text-neutral-500">{t('shp.customsRow')}</dt>
                     <dd className="font-semibold tabular-nums text-red-600">
                       −{mln(pnl.customsUzs)}
                     </dd>
                   </div>
                   <div className="flex justify-between border-b border-neutral-100 pb-2.5">
                     <dt className="text-neutral-500">
-                      Nuqson zarari ({pnl.defectVolumeM3.toFixed(1)} m³)
+                      {t('shp.defectLoss', {
+                        vol: pnl.defectVolumeM3.toFixed(1),
+                      })}
                     </dt>
                     <dd className="font-semibold tabular-nums text-red-600">
                       −{mln(pnl.defectLossUzs)}
@@ -345,7 +352,7 @@ export default function FuralarPage() {
                 }`}
               >
                 <div className="text-[11px] tracking-wider font-semibold text-neutral-500">
-                  SOF FOYDA
+                  {t('shp.netProfit')}
                 </div>
                 <div
                   className={`text-2xl font-bold tabular-nums mt-0.5 ${
@@ -355,15 +362,13 @@ export default function FuralarPage() {
                   {pnl.netProfitUzs >= 0 ? '+' : '−'}
                   {mln(Math.abs(pnl.netProfitUzs))}{' '}
                   <span className="text-sm font-medium text-neutral-400">
-                    so&apos;m
+                    {t('common.som')}
                   </span>
                 </div>
               </div>
 
               <p className="text-[11px] text-neutral-400 leading-relaxed">
-                Sof foyda = sotilgan savdo − sotilgan hajm tannarxi − transport
-                − bojxona − nuqson zarari. Sotilmagan yog&apos;och hali xarajat
-                emas — u ombor aktivi.
+                {t('shp.footnote')}
               </p>
             </div>
           )}

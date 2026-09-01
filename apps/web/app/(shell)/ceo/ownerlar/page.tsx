@@ -12,14 +12,17 @@ import {
 } from '../../../../lib/queries';
 import {
   billingBadge,
-  KIND,
+  KIND_CLS,
   KIND_OPTIONS,
   OwnerRow,
-  STATUS,
+  STATUS_CLS,
   uzDate,
 } from '../../../../lib/ceo';
+import { useEnumLabel, useI18n } from '../../../../lib/i18n';
+import { MsgKey } from '../../../../lib/i18n/messages';
 
 export default function OwnerlarPage() {
+  const { t, ts } = useI18n();
   const { data, loading, refetch } = useQuery<{ owners: OwnerRow[] }>(OWNERS);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [open, setOpen] = useState(false);
@@ -45,15 +48,15 @@ export default function OwnerlarPage() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!form.name || !form.phone || !form.password || !form.businessName) {
-      return err('Barcha maydonlarni to‘ldiring.');
+      return err(t('ceo.own.fillAll'));
     }
     try {
       const { data: d } = await createOwner({ variables: { input: form } });
-      ok(`"${d.createOwner.businessName}" yaratildi — owner darhol kira oladi.`);
+      ok(t('ceo.own.created', { name: d.createOwner.businessName }));
       setForm({ name: '', phone: '', password: '', businessName: '', kind: 'BOTH' });
       setOpen(false);
     } catch (e2) {
-      err(e2 instanceof Error ? e2.message : 'Xato yuz berdi.');
+      err(ts(e2 instanceof Error ? e2.message : null));
     }
   }
 
@@ -62,10 +65,8 @@ export default function OwnerlarPage() {
   return (
     <div className="grid grid-cols-1 gap-6">
       <div>
-        <h1 className="text-xl font-bold">👑 Ownerlar</h1>
-        <p className="text-sm text-neutral-500 mt-1">
-          Biznes egalari — qo&apos;shish, tahrirlash, obuna va o&apos;chirish.
-        </p>
+        <h1 className="text-xl font-bold">{t('ceo.own.title')}</h1>
+        <p className="text-sm text-neutral-500 mt-1">{t('ceo.own.sub')}</p>
       </div>
 
       {msg && (
@@ -83,7 +84,7 @@ export default function OwnerlarPage() {
       <section className="card overflow-hidden">
         <div className="px-5 py-3.5 border-b border-neutral-100 flex items-center gap-3">
           <h2 className="font-semibold text-sm flex-1">
-            Ownerlar ({rows.length})
+            {t('ceo.own.count', { n: rows.length })}
           </h2>
           <button
             onClick={() => setOpen((v) => !v)}
@@ -93,7 +94,7 @@ export default function OwnerlarPage() {
                 : 'bg-[#1c130a] text-white hover:opacity-90'
             }`}
           >
-            {open ? 'Bekor qilish' : '+ Owner qo‘shish'}
+            {open ? t('common.cancel') : t('ceo.own.add')}
           </button>
         </div>
 
@@ -102,25 +103,37 @@ export default function OwnerlarPage() {
             onSubmit={submit}
             className="px-5 py-4 border-b border-neutral-100 bg-amber-50/40 grid grid-cols-1 sm:grid-cols-2 gap-3"
           >
-            {[
-              ['name', 'Owner ismi', 'Ism Familiya', 'text'],
-              ['phone', 'Telefon (login)', '+998 90 123 45 67', 'tel'],
-              ['password', 'Boshlang‘ich parol', 'kamida 4 belgi', 'text'],
-              ['businessName', 'Biznes nomi', 'Masalan: Adam Yog‘och', 'text'],
-            ].map(([key, label, ph, mode]) => (
+            {(
+              [
+                ['name', 'ceo.own.f.name', 'ceo.own.f.namePh', 'text'],
+                ['phone', 'ceo.own.f.phone', 'ceo.own.f.phonePh', 'tel'],
+                [
+                  'password',
+                  'ceo.own.f.password',
+                  'ceo.own.f.passwordPh',
+                  'text',
+                ],
+                [
+                  'businessName',
+                  'ceo.own.f.bizName',
+                  'ceo.own.f.bizNamePh',
+                  'text',
+                ],
+              ] as [string, MsgKey, MsgKey, string][]
+            ).map(([key, lab, ph, mode]) => (
               <label key={key} className="grid gap-1.5">
-                <span className="field-label text-xs">{label}</span>
+                <span className="field-label text-xs">{t(lab)}</span>
                 <input
                   value={(form as Record<string, string>)[key]}
                   onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                   inputMode={mode === 'tel' ? 'tel' : undefined}
-                  placeholder={ph}
+                  placeholder={t(ph)}
                   className="field-input !py-2"
                 />
               </label>
             ))}
             <div className="sm:col-span-2 grid gap-1.5">
-              <span className="field-label text-xs">Biznes turi</span>
+              <span className="field-label text-xs">{t('ceo.own.f.kind')}</span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {KIND_OPTIONS.map((k) => (
                   <button
@@ -133,9 +146,11 @@ export default function OwnerlarPage() {
                         : 'border-neutral-200 bg-white hover:border-brand/40'
                     }`}
                   >
-                    <span className="block font-semibold text-sm">{k.label}</span>
+                    <span className="block font-semibold text-sm">
+                      {t(k.label)}
+                    </span>
                     <span className="block text-[11px] text-neutral-500">
-                      {k.hint}
+                      {t(k.hint)}
                     </span>
                   </button>
                 ))}
@@ -146,7 +161,7 @@ export default function OwnerlarPage() {
                 disabled={saving}
                 className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
               >
-                {saving ? 'Yaratilmoqda…' : 'Owner yaratish'}
+                {saving ? t('ceo.own.creating') : t('ceo.own.create')}
               </button>
             </div>
           </form>
@@ -154,11 +169,11 @@ export default function OwnerlarPage() {
 
         {loading ? (
           <p className="px-5 py-8 text-sm text-neutral-500 text-center">
-            Yuklanmoqda…
+            {t('common.loading')}
           </p>
         ) : rows.length === 0 ? (
           <p className="px-5 py-8 text-sm text-neutral-500 text-center">
-            Hali owner yo‘q.
+            {t('ceo.own.empty')}
           </p>
         ) : (
           <ul className="divide-y divide-neutral-100">
@@ -221,7 +236,9 @@ function OwnerRowItem({
   onGranted: (t: string) => void;
   onError: (t: string) => void;
 }) {
-  const st = STATUS[o.status] ?? STATUS.PENDING;
+  const { t, ts } = useI18n();
+  const label = useEnumLabel();
+  const stCls = STATUS_CLS[o.status] ?? STATUS_CLS.PENDING;
   const billing = billingBadge(o);
   const [deleteOwner, { loading: deleting }] = useMutation(DELETE_OWNER);
   const [grant, { loading: granting }] = useMutation(GRANT_FREE_ACCESS);
@@ -229,9 +246,11 @@ function OwnerRowItem({
   async function doDelete() {
     try {
       await deleteOwner({ variables: { businessId: o.businessId } });
-      onDeleted(`"${o.businessName}" va barcha ma’lumoti o‘chirildi.`);
+      onDeleted(t('ceo.own.deleted', { name: o.businessName }));
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'O‘chirishda xato.');
+      onError(
+        ts(e instanceof Error ? e.message : null, 'ceo.own.deleteError'),
+      );
     }
   }
   async function toggleAccess() {
@@ -243,11 +262,11 @@ function OwnerRowItem({
       });
       onGranted(
         !o.freeAccess
-          ? `"${o.businessName}" — tekin ruxsat berildi.`
-          : `"${o.businessName}" — tekin ruxsat olib tashlandi.`,
+          ? t('ceo.own.grantOn', { name: o.businessName })
+          : t('ceo.own.grantOff', { name: o.businessName }),
       );
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Xato yuz berdi.');
+      onError(ts(e instanceof Error ? e.message : null));
     }
   }
 
@@ -273,20 +292,20 @@ function OwnerRowItem({
       {confirming ? (
         <div className="flex items-center gap-2 flex-none">
           <span className="hidden md:block text-xs text-red-600 font-medium">
-            Barcha ma’lumot yo‘qoladi!
+            {t('ceo.own.deleteWarn')}
           </span>
           <button
             disabled={deleting}
             onClick={doDelete}
             className="rounded-lg bg-red-600 text-white px-3 py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-40"
           >
-            {deleting ? 'O‘chirilmoqda…' : 'Ha, o‘chir'}
+            {deleting ? t('ceo.own.deleting') : t('ceo.own.deleteYes')}
           </button>
           <button
             onClick={onCancelDelete}
             className="rounded-lg border border-neutral-200 text-neutral-500 px-3 py-1.5 text-xs font-semibold hover:bg-neutral-50"
           >
-            Yo‘q
+            {t('common.no')}
           </button>
         </div>
       ) : (
@@ -295,26 +314,30 @@ function OwnerRowItem({
             <span
               className={`hidden md:inline-block text-[11px] font-medium rounded-full px-2.5 py-1 flex-none ${billing.cls}`}
             >
-              {billing.label}
+              {t(billing.key, billing.vars)}
             </span>
           )}
           <span
             className={`hidden lg:inline-block text-[11px] font-medium rounded-full px-2.5 py-1 flex-none ${
-              (KIND[o.kind] ?? KIND.BOTH).cls
+              KIND_CLS[o.kind] ?? KIND_CLS.BOTH
             }`}
           >
-            {(KIND[o.kind] ?? KIND.BOTH).label}
+            {label('kind', o.kind)}
           </span>
           <span
-            className={`text-[11px] font-medium rounded-full px-2.5 py-1 flex-none ${st.cls}`}
+            className={`text-[11px] font-medium rounded-full px-2.5 py-1 flex-none ${stCls}`}
           >
-            {st.label}
+            {label('bizStatus', o.status)}
           </span>
           <div className="flex items-center gap-1 flex-none">
             <button
               onClick={toggleAccess}
               disabled={granting}
-              title={o.freeAccess ? 'Tekin ruxsatni olib tashlash' : 'Tekin ruxsat berish'}
+              title={
+                o.freeAccess
+                  ? t('ceo.own.grantTitleOn')
+                  : t('ceo.own.grantTitleOff')
+              }
               className={`w-8 h-8 grid place-items-center rounded-lg border transition-colors disabled:opacity-40 ${
                 o.freeAccess
                   ? 'border-blue-300 text-blue-600 bg-blue-50'
@@ -325,14 +348,14 @@ function OwnerRowItem({
             </button>
             <button
               onClick={onEdit}
-              title="Tahrirlash"
+              title={t('ceo.own.editTitle')}
               className="w-8 h-8 grid place-items-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-amber-300 hover:text-amber-600 transition-colors"
             >
               ✎
             </button>
             <button
               onClick={onAskDelete}
-              title="O‘chirish"
+              title={t('ceo.own.deleteTitle')}
               className="w-8 h-8 grid place-items-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-red-300 hover:text-red-600 transition-colors"
             >
               🗑
@@ -361,12 +384,13 @@ function EditOwnerForm({
     businessName: owner.businessName,
     newPassword: '',
   });
+  const { t, ts } = useI18n();
   const [updateOwner, { loading: saving }] = useMutation(UPDATE_OWNER);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!form.name || !form.phone || !form.businessName) {
-      return onError('Ism, telefon va biznes nomi bo‘sh bo‘lmasin.');
+      return onError(t('ceo.own.editRequired'));
     }
     try {
       await updateOwner({
@@ -380,9 +404,9 @@ function EditOwnerForm({
           },
         },
       });
-      onDone(`"${form.businessName}" yangilandi.`);
+      onDone(t('ceo.own.updated', { name: form.businessName }));
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Yangilashda xato.');
+      onError(ts(e instanceof Error ? e.message : null, 'ceo.own.updateError'));
     }
   }
 
@@ -391,18 +415,22 @@ function EditOwnerForm({
       onSubmit={submit}
       className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-3"
     >
-      {[
-        ['name', 'Owner ismi'],
-        ['phone', 'Telefon (login)'],
-        ['businessName', 'Biznes nomi'],
-        ['newPassword', 'Yangi parol (bo‘sh = o‘zgarmaydi)'],
-      ].map(([key, label]) => (
+      {(
+        [
+          ['name', 'ceo.own.f.name'],
+          ['phone', 'ceo.own.f.phone'],
+          ['businessName', 'ceo.own.f.bizName'],
+          ['newPassword', 'ceo.own.f.newPassword'],
+        ] as [string, MsgKey][]
+      ).map(([key, lab]) => (
         <label key={key} className="grid gap-1.5">
-          <span className="field-label text-xs">{label}</span>
+          <span className="field-label text-xs">{t(lab)}</span>
           <input
             value={(form as Record<string, string>)[key]}
             onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-            placeholder={key === 'newPassword' ? '•••• (ixtiyoriy)' : ''}
+            placeholder={
+            key === 'newPassword' ? t('ceo.own.f.newPasswordPh') : ''
+          }
             className="field-input !py-2"
           />
         </label>
@@ -413,13 +441,13 @@ function EditOwnerForm({
           onClick={onCancel}
           className="rounded-xl border border-neutral-200 text-neutral-500 px-4 py-2.5 text-sm font-semibold hover:bg-neutral-50"
         >
-          Bekor
+          {t('pur.cancelShort')}
         </button>
         <button
           disabled={saving}
           className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40"
         >
-          {saving ? 'Saqlanmoqda…' : 'Saqlash'}
+          {saving ? t('common.saving') : t('common.save')}
         </button>
       </div>
     </form>

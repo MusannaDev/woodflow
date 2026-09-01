@@ -2,6 +2,8 @@
 
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useState } from 'react';
+import { fmt } from '../../../lib/format';
+import { useI18n } from '../../../lib/i18n';
 import { CREATE_CUSTOMER, MIJOZLAR_PAGE } from '../../../lib/queries';
 
 /**
@@ -18,10 +20,8 @@ interface CustomerRow {
   createdAt: string;
 }
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 }).format(n);
-
 export default function MijozlarPage() {
+  const { t, ts } = useI18n();
   const { data, loading, error, refetch } =
     useQuery<{ customers: CustomerRow[] }>(MIJOZLAR_PAGE);
   const [createCustomer, { loading: saving }] = useMutation(CREATE_CUSTOMER);
@@ -37,58 +37,66 @@ export default function MijozlarPage() {
       await createCustomer({
         variables: { input: { name: name.trim(), phone: phone || null } },
       });
-      setMsg({ ok: true, text: `Mijoz "${name.trim()}" qo'shildi.` });
+      setMsg({ ok: true, text: t('cust.added', { name: name.trim() }) });
       setName('');
       setPhone('+998');
       await refetch();
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
 
-  if (loading) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (loading) return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+    return (
+      <p className="text-red-600 text-sm">
+        {t('common.errorPrefix', { msg: ts(error.message) })}
+      </p>
+    );
 
   const customers = data?.customers ?? [];
   const totalDebt = customers.reduce((a, c) => a + c.debtUzs, 0);
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <h1 className="text-xl font-bold">Mijozlar</h1>
+      <h1 className="text-xl font-bold">{t('cust.title')}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
         {/* ─── Jadval ─── */}
         <section className="card overflow-hidden order-2 lg:order-1">
           <div className="px-5 py-3.5 border-b border-neutral-100 flex items-center justify-between">
             <h2 className="font-semibold text-sm">
-              Barcha mijozlar ({customers.length})
+              {t('cust.all', { n: customers.length })}
             </h2>
             {totalDebt > 0 && (
               <span className="text-xs font-medium text-amber-700">
-                Jami qarz: {fmt(totalDebt)} so&apos;m
+                {t('cust.totalDebt', { amount: fmt(totalDebt) })}
               </span>
             )}
           </div>
           {customers.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-500">
-              Hozircha mijoz yo&apos;q.
+              {t('cust.empty')}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-[11px] tracking-wider text-neutral-400 border-b border-neutral-100">
-                    <th className="px-5 py-3 font-semibold">MIJOZ</th>
-                    <th className="px-5 py-3 font-semibold">TELEFON</th>
-                    <th className="px-5 py-3 font-semibold text-right">
-                      SAVDOLAR
+                    <th className="px-5 py-3 font-semibold">
+                      {t('cust.col.customer')}
+                    </th>
+                    <th className="px-5 py-3 font-semibold">
+                      {t('cust.col.phone')}
                     </th>
                     <th className="px-5 py-3 font-semibold text-right">
-                      QARZ BALANSI
+                      {t('cust.col.sales')}
+                    </th>
+                    <th className="px-5 py-3 font-semibold text-right">
+                      {t('cust.col.debt')}
                     </th>
                   </tr>
                 </thead>
@@ -112,11 +120,11 @@ export default function MijozlarPage() {
                       <td className="px-5 py-3.5 text-right">
                         {c.debtUzs > 0 ? (
                           <span className="text-[11px] font-medium bg-amber-100 text-amber-700 rounded-full px-2.5 py-1 tabular-nums">
-                            {fmt(c.debtUzs)} so&apos;m
+                            {fmt(c.debtUzs)} {t('common.som')}
                           </span>
                         ) : (
                           <span className="text-[11px] font-medium bg-emerald-100 text-emerald-700 rounded-full px-2.5 py-1">
-                            Qarz yo&apos;q
+                            {t('cust.noDebt')}
                           </span>
                         )}
                       </td>
@@ -133,18 +141,18 @@ export default function MijozlarPage() {
           onSubmit={onSubmit}
           className="card p-5 grid gap-4 order-1 lg:order-2 lg:sticky lg:top-20"
         >
-          <h2 className="font-semibold text-sm">+ Yangi mijoz</h2>
+          <h2 className="font-semibold text-sm">{t('cust.new')}</h2>
           <label className="grid gap-1.5">
-            <span className="field-label">Ism</span>
+            <span className="field-label">{t('cust.name')}</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Alisher Karimov"
+              placeholder={t('cust.namePh')}
               className="field-input"
             />
           </label>
           <label className="grid gap-1.5">
-            <span className="field-label">Telefon</span>
+            <span className="field-label">{t('common.phone')}</span>
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -169,7 +177,7 @@ export default function MijozlarPage() {
             disabled={saving || name.trim().length < 2}
             className="btn-primary"
           >
-            {saving ? 'Saqlanmoqda…' : "Mijoz qo'shish"}
+            {saving ? t('common.saving') : t('cust.submit')}
           </button>
         </form>
       </div>

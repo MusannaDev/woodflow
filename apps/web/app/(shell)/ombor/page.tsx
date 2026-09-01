@@ -4,6 +4,8 @@ import { useMutation, useQuery } from '@apollo/client';
 import { Fragment, FormEvent, useState } from 'react';
 import { INVENTORY_PAGE, RECORD_DEFECT } from '../../../lib/queries';
 import { parseDecimal, parseQty } from '../../../lib/format';
+import { useEnumLabel, useI18n } from '../../../lib/i18n';
+import { MsgKey } from '../../../lib/i18n/messages';
 
 /**
  * Ombor (UI hujjati §7.3): yuqorida umumiy chiplar, pastda lotlar jadvali.
@@ -32,25 +34,20 @@ interface PageData {
   inventory: LotRow[];
 }
 
-const fmt = (n: number, d = 1) =>
-  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: d }).format(n);
-
-const sourceLabel = (s: string | null) =>
-  s === 'RUSSIA_IMPORT'
-    ? 'Rossiya importi'
-    : s === 'INTERNAL_TRANSFER'
-      ? 'Ichki transfer'
-      : 'Mahalliy';
-
-const STATUS: Record<string, { label: string; cls: string }> = {
-  AVAILABLE: { label: 'Mavjud', cls: 'bg-emerald-100 text-emerald-700' },
-  LOW: { label: 'Kam', cls: 'bg-amber-100 text-amber-700' },
-  RESERVED: { label: 'Bron', cls: 'bg-blue-100 text-blue-700' },
-  SOLD_OUT: { label: 'Tugagan', cls: 'bg-neutral-100 text-neutral-500' },
-  DEFECT: { label: 'Nuqson', cls: 'bg-red-100 text-red-700' },
+const STATUS_CLS: Record<string, string> = {
+  AVAILABLE: 'bg-emerald-100 text-emerald-700',
+  LOW: 'bg-amber-100 text-amber-700',
+  RESERVED: 'bg-blue-100 text-blue-700',
+  SOLD_OUT: 'bg-neutral-100 text-neutral-500',
+  DEFECT: 'bg-red-100 text-red-700',
 };
 
 export default function OmborPage() {
+  const { t, ts, locale } = useI18n();
+  const label = useEnumLabel();
+  const fmt = (n: number, d = 1) =>
+    new Intl.NumberFormat(locale, { maximumFractionDigits: d }).format(n);
+
   const { data, loading, error, refetch } = useQuery<PageData>(INVENTORY_PAGE);
   const [recordDefect, { loading: saving }] = useMutation(RECORD_DEFECT);
 
@@ -67,7 +64,7 @@ export default function OmborPage() {
     if (vol <= 0 || vol > lot.volumeM3Remaining) {
       setMsg({
         ok: false,
-        text: `Hajm 0 dan katta va qoldiqdan (${fmt(lot.volumeM3Remaining)} m³) oshmasligi kerak.`,
+        text: t('inv.defectRange', { max: fmt(lot.volumeM3Remaining) }),
       });
       return;
     }
@@ -85,10 +82,7 @@ export default function OmborPage() {
           },
         },
       });
-      setMsg({
-        ok: true,
-        text: `${vol} m³ nuqson belgilandi — sotiladigan qoldiqdan chiqarildi, zarar furaga yozildi.`,
-      });
+      setMsg({ ok: true, text: t('inv.defectDone', { vol }) });
       setDefectLotId(null);
       setDefectVol('');
       setDefectQty('');
@@ -97,36 +91,47 @@ export default function OmborPage() {
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
 
-  if (loading) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (loading) return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+    return (
+      <p className="text-red-600 text-sm">
+        {t('common.errorPrefix', { msg: ts(error.message) })}
+      </p>
+    );
 
   const s = data!.inventorySummary;
   const lots = data!.inventory;
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <h1 className="text-xl font-bold">Ombor</h1>
+      <h1 className="text-xl font-bold">{t('inv.title')}</h1>
 
       {/* ─── Umumiy chiplar ─── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          ['Jami qoldiq', `${fmt(s.totalRemainingM3)} m³`, ''],
-          ['Jami dona', s.totalQuantity > 0 ? fmt(s.totalQuantity, 0) : '—', ''],
-          ['Nuqson', `${fmt(s.defectM3)} m³`, s.defectM3 > 0 ? 'text-red-600' : ''],
-          ['Lotlar', String(s.lotCount), ''],
-        ].map(([l, v, cls]) => (
-          <div
-            key={l}
-            className="card rounded-xl p-4"
-          >
+        {(
+          [
+            ['inv.chip.remaining', `${fmt(s.totalRemainingM3)} m³`, ''],
+            [
+              'inv.chip.pieces',
+              s.totalQuantity > 0 ? fmt(s.totalQuantity, 0) : '—',
+              '',
+            ],
+            [
+              'inv.chip.defect',
+              `${fmt(s.defectM3)} m³`,
+              s.defectM3 > 0 ? 'text-red-600' : '',
+            ],
+            ['inv.chip.lots', String(s.lotCount), ''],
+          ] as [MsgKey, string, string][]
+        ).map(([l, v, cls]) => (
+          <div key={l} className="card rounded-xl p-4">
             <div className="text-[11px] tracking-wide text-neutral-500 font-medium">
-              {l}
+              {t(l)}
             </div>
             <div className={`text-xl md:text-2xl font-bold mt-1 tabular-nums ${cls}`}>
               {v}
@@ -153,18 +158,30 @@ export default function OmborPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-[11px] tracking-wider text-neutral-400 border-b border-neutral-100">
-                <th className="px-5 py-3 font-semibold">YOG&apos;OCH / MANBA</th>
-                <th className="px-5 py-3 font-semibold">NAVI</th>
-                <th className="px-5 py-3 font-semibold text-right">QOLDIQ</th>
-                <th className="px-5 py-3 font-semibold text-right">DONA</th>
-                <th className="px-5 py-3 font-semibold text-right">TANNARX / m³</th>
-                <th className="px-5 py-3 font-semibold text-right">HOLAT</th>
-                <th className="px-5 py-3 font-semibold text-right">AMAL</th>
+                <th className="px-5 py-3 font-semibold">
+                  {t('inv.col.woodSource')}
+                </th>
+                <th className="px-5 py-3 font-semibold">{t('inv.col.grade')}</th>
+                <th className="px-5 py-3 font-semibold text-right">
+                  {t('inv.col.remaining')}
+                </th>
+                <th className="px-5 py-3 font-semibold text-right">
+                  {t('inv.col.pieces')}
+                </th>
+                <th className="px-5 py-3 font-semibold text-right">
+                  {t('inv.col.unitCost')}
+                </th>
+                <th className="px-5 py-3 font-semibold text-right">
+                  {t('inv.col.status')}
+                </th>
+                <th className="px-5 py-3 font-semibold text-right">
+                  {t('inv.col.action')}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-50">
               {lots.map((lot) => {
-                const st = STATUS[lot.status] ?? STATUS.AVAILABLE;
+                const stCls = STATUS_CLS[lot.status] ?? STATUS_CLS.AVAILABLE;
                 const isOpen = defectLotId === lot.id;
                 return (
                   <Fragment key={lot.id}>
@@ -172,7 +189,7 @@ export default function OmborPage() {
                       <td className="px-5 py-3.5">
                         <span className="block font-medium">{lot.woodType}</span>
                         <span className="block text-xs text-neutral-400">
-                          {sourceLabel(lot.source)}
+                          {label('src', lot.source ?? 'LOCAL')}
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-neutral-600">
@@ -199,9 +216,9 @@ export default function OmborPage() {
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <span
-                          className={`text-[11px] font-medium rounded-full px-2.5 py-1 ${st.cls}`}
+                          className={`text-[11px] font-medium rounded-full px-2.5 py-1 ${stCls}`}
                         >
-                          {st.label}
+                          {label('lotStatus', lot.status)}
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-right">
@@ -217,7 +234,7 @@ export default function OmborPage() {
                                 : 'border-neutral-200 text-neutral-500 hover:border-red-300 hover:text-red-600'
                             }`}
                           >
-                            {isOpen ? 'Bekor qilish' : 'Nuqson belgilash'}
+                            {isOpen ? t('common.cancel') : t('inv.markDefect')}
                           </button>
                         )}
                       </td>
@@ -233,7 +250,9 @@ export default function OmborPage() {
                           >
                             <label className="grid gap-1.5">
                               <span className="field-label text-xs">
-                                Nuqson hajmi (m³) — maks {fmt(lot.volumeM3Remaining)}
+                                {t('inv.defectVol', {
+                                  max: fmt(lot.volumeM3Remaining),
+                                })}
                               </span>
                               <input
                                 value={defectVol}
@@ -247,7 +266,9 @@ export default function OmborPage() {
                             {lot.quantityRemaining != null && (
                               <label className="grid gap-1.5">
                                 <span className="field-label text-xs">
-                                  Dona (maks {lot.quantityRemaining})
+                                  {t('inv.defectQty', {
+                                    max: lot.quantityRemaining,
+                                  })}
                                 </span>
                                 <input
                                   value={defectQty}
@@ -260,12 +281,12 @@ export default function OmborPage() {
                             )}
                             <label className="grid gap-1.5 flex-1 min-w-48">
                               <span className="field-label text-xs">
-                                Sabab (ixtiyoriy)
+                                {t('inv.defectReason')}
                               </span>
                               <input
                                 value={defectReason}
                                 onChange={(e) => setDefectReason(e.target.value)}
-                                placeholder="Chirigan, yorilgan…"
+                                placeholder={t('inv.defectReasonPh')}
                                 className="field-input !py-2"
                               />
                             </label>
@@ -273,7 +294,9 @@ export default function OmborPage() {
                               disabled={saving}
                               className="rounded-xl bg-red-600 text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
                             >
-                              {saving ? 'Saqlanmoqda…' : 'Nuqsonni tasdiqlash'}
+                              {saving
+                                ? t('common.saving')
+                                : t('inv.defectSubmit')}
                             </button>
                           </form>
                         </td>

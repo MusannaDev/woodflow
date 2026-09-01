@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { USER_DETAIL } from '../../../../../lib/queries';
 import { ROLE, uzDate } from '../../../../../lib/ceo';
+import { useEnumLabel, useI18n } from '../../../../../lib/i18n';
+import { MsgKey } from '../../../../../lib/i18n/messages';
 
 interface Membership {
   workspaceName: string;
@@ -22,10 +24,9 @@ interface Detail {
   memberships: Membership[];
 }
 
-const roleName = (r: string) =>
-  r === 'OWNER' ? 'Egasi' : r === 'WORKER' ? 'Ishchi' : r;
-
 export default function UserDetailPage() {
+  const { t, ts } = useI18n();
+  const label = useEnumLabel();
   const params = useParams();
   const userId = String(params.id);
   const { data, loading, error } = useQuery<{ userDetail: Detail }>(
@@ -34,9 +35,13 @@ export default function UserDetailPage() {
   );
 
   if (loading && !data)
-    return <p className="text-neutral-500">Yuklanmoqda…</p>;
+    return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+    return (
+      <p className="text-red-600 text-sm">
+        {t('common.errorPrefix', { msg: ts(error.message) })}
+      </p>
+    );
 
   const d = data!.userDetail;
 
@@ -46,7 +51,7 @@ export default function UserDetailPage() {
         href="/ceo/foydalanuvchilar"
         className="text-sm text-neutral-500 hover:text-brand transition-colors w-fit"
       >
-        ← Foydalanuvchilar
+        {t('ceo.users.back')}
       </Link>
 
       {/* Sarlavha */}
@@ -63,20 +68,22 @@ export default function UserDetailPage() {
             ROLE[d.roleLabel] ?? ROLE['—']
           }`}
         >
-          {d.roleLabel}
+          {label('ceoRole', d.roleLabel)}
         </span>
       </div>
 
       {/* Ma'lumot */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {[
-          ['Platforma roli', d.platformRole],
-          ['Biznesi', d.ownedBusinessName ?? '—'],
-          ["Ro'yxatdan", uzDate(d.createdAt)],
-        ].map(([l, v]) => (
+        {(
+          [
+            ['ceo.users.platformRole', d.platformRole],
+            ['ceo.users.business', d.ownedBusinessName ?? '—'],
+            ['ceo.users.since', uzDate(d.createdAt)],
+          ] as [MsgKey, string][]
+        ).map(([l, v]) => (
           <div key={l} className="card rounded-xl p-4">
             <div className="text-[11px] tracking-wide text-neutral-500 font-medium">
-              {l}
+              {t(l)}
             </div>
             <div className="text-sm font-bold mt-1 truncate">{v}</div>
           </div>
@@ -86,11 +93,11 @@ export default function UserDetailPage() {
       {/* A'zoliklar */}
       <section className="card overflow-hidden">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
-          Makon a&apos;zoliklari ({d.memberships.length})
+          {t('ceo.users.memberships', { n: d.memberships.length })}
         </h2>
         {d.memberships.length === 0 ? (
           <p className="px-5 py-6 text-sm text-neutral-500 text-center">
-            Hech qanday makonga a&apos;zo emas.
+            {t('ceo.users.noMemberships')}
           </p>
         ) : (
           <ul className="divide-y divide-neutral-100">
@@ -108,7 +115,7 @@ export default function UserDetailPage() {
                   )}
                 </span>
                 <span className="text-[11px] font-medium rounded-full px-2.5 py-1 bg-neutral-100 text-neutral-600 flex-none">
-                  {roleName(m.role)}
+                  {label('common.role', m.role)}
                 </span>
               </li>
             ))}

@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useRef, useState } from 'react';
 import { MY_BUSINESS, UPDATE_BUSINESS } from '../../../lib/queries';
+import { useI18n } from '../../../lib/i18n';
 import { API_BASE, session } from '../../../lib/session';
 
 /**
@@ -20,6 +21,7 @@ interface BusinessData {
 }
 
 export default function SozlamalarPage() {
+  const { t, ts } = useI18n();
   const { data, loading, error, refetch } =
     useQuery<BusinessData>(MY_BUSINESS);
   const [updateBusiness, { loading: saving }] = useMutation(UPDATE_BUSINESS);
@@ -51,12 +53,12 @@ export default function SozlamalarPage() {
         variables: { input: { name: displayName.trim() } },
       });
       syncSession({ name: res.data.updateBusiness.name });
-      setMsg({ ok: true, text: 'Biznes nomi saqlandi. Sahifa yangilanganda menyuda ko‘rinadi.' });
+      setMsg({ ok: true, text: t('set.nameDone') });
       await refetch();
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
@@ -73,37 +75,35 @@ export default function SozlamalarPage() {
         body: form,
       });
       if (!res.ok) {
-        throw new Error('Yuklashda xato — rasm (png/jpg/webp, maks 2MB) tanlang.');
+        throw new Error(t('set.logoError'));
       }
       const json = (await res.json()) as { logoUrl: string };
       syncSession({ logoUrl: json.logoUrl });
-      setMsg({ ok: true, text: 'Logo yuklandi. Sahifa yangilanganda menyuda ko‘rinadi.' });
+      setMsg({ ok: true, text: t('set.logoDone') });
       await refetch();
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Yuklashda xato.',
+        text: ts(err instanceof Error ? err.message : null, 'set.uploadFailed'),
       });
     } finally {
       setUploading(false);
     }
   }
 
-  if (loading) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (loading) return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
     return (
       <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 max-w-lg">
-        {error.graphQLErrors[0]?.message ?? error.message}
+        {ts(error.graphQLErrors[0]?.message ?? error.message)}
       </p>
     );
 
   return (
     <div className="grid gap-6 max-w-2xl">
       <div>
-        <h1 className="text-xl font-bold">Sozlamalar</h1>
-        <p className="text-sm text-neutral-500 mt-1">
-          Biznesingiz brendi — nom va logo.
-        </p>
+        <h1 className="text-xl font-bold">{t('set.title')}</h1>
+        <p className="text-sm text-neutral-500 mt-1">{t('set.sub')}</p>
       </div>
 
       {msg && (
@@ -133,10 +133,8 @@ export default function SozlamalarPage() {
           </span>
         )}
         <div className="flex-1 min-w-48">
-          <h2 className="font-semibold text-sm">Biznes logosi</h2>
-          <p className="text-xs text-neutral-400 mt-1">
-            PNG, JPG yoki WEBP — maks 2MB. Menyu va sarlavhada ko&apos;rinadi.
-          </p>
+          <h2 className="font-semibold text-sm">{t('set.logo')}</h2>
+          <p className="text-xs text-neutral-400 mt-1">{t('set.logoHint')}</p>
           <input
             ref={fileRef}
             type="file"
@@ -152,25 +150,29 @@ export default function SozlamalarPage() {
             disabled={uploading}
             className="mt-3 rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
           >
-            {uploading ? 'Yuklanmoqda…' : biz?.logoUrl ? 'Logoni almashtirish' : 'Logo yuklash'}
+            {uploading
+              ? t('set.uploading')
+              : biz?.logoUrl
+                ? t('set.replaceLogo')
+                : t('set.uploadLogo')}
           </button>
         </div>
       </section>
 
       {/* ── Nom ── */}
       <form onSubmit={saveName} className="card p-6 grid gap-4">
-        <h2 className="font-semibold text-sm">Biznes nomi</h2>
+        <h2 className="font-semibold text-sm">{t('set.bizName')}</h2>
         <input
           value={displayName}
           onChange={(e) => setName(e.target.value)}
           className="field-input"
-          placeholder="Masalan: Premium Wood"
+          placeholder={t('set.bizNamePh')}
         />
         <button
           disabled={saving || displayName.trim().length < 2}
           className="btn-primary sm:max-w-xs"
         >
-          {saving ? 'Saqlanmoqda…' : 'Nomni saqlash'}
+          {saving ? t('common.saving') : t('set.saveName')}
         </button>
       </form>
     </div>

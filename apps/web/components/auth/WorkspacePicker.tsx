@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '../../lib/i18n';
 import { WorkspaceBrief } from '../../lib/session';
 
 /** Login/Signup'dan keyin biznes tanlash — premium kartalar. */
@@ -10,14 +11,14 @@ export function WorkspacePicker({
   workspaces: WorkspaceBrief[];
   onPick: (ws: WorkspaceBrief) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="animate-[fadeIn_.4s_ease]">
       <h1 className="text-2xl font-bold tracking-tight">
-        Qaysi biznesga kirasiz?
+        {t('auth.picker.title')}
       </h1>
-      <p className="text-sm text-neutral-500 mt-1.5">
-        Keyin istalgan payt bir bosishda almashtira olasiz.
-      </p>
+      <p className="text-sm text-neutral-500 mt-1.5">{t('auth.picker.sub')}</p>
 
       <div className="grid gap-4 mt-8">
         {workspaces.map((ws) => (
@@ -34,8 +35,8 @@ export function WorkspacePicker({
               <span className="block font-semibold">{ws.name}</span>
               <span className="block text-xs text-neutral-500 mt-0.5">
                 {ws.type === 'WOOD_TRADING'
-                  ? 'Import · ombor · fura foydasi'
-                  : 'Ishlab chiqarish · tayyor mahsulot'}
+                  ? t('auth.picker.wood')
+                  : t('auth.picker.lumber')}
               </span>
             </span>
             <span className="text-neutral-300 group-hover:text-brand transition-colors text-lg">

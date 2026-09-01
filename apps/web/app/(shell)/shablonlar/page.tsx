@@ -4,6 +4,8 @@ import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useState } from 'react';
 import { CREATE_TEMPLATE, TEMPLATES_PAGE } from '../../../lib/queries';
 import { parseDecimal } from '../../../lib/format';
+import { useI18n } from '../../../lib/i18n';
+import { MsgKey } from '../../../lib/i18n/messages';
 
 /**
  * Mahsulot shablonlari (UI hujjati §8.2): doimiy o'lchamlar (Pol taxta,
@@ -20,6 +22,7 @@ interface TemplateRow {
 }
 
 export default function ShablonlarPage() {
+  const { t, ts } = useI18n();
   const { data, loading, error, refetch } =
     useQuery<{ productTemplates: TemplateRow[] }>(TEMPLATES_PAGE);
   const [createTemplate, { loading: saving }] = useMutation(CREATE_TEMPLATE);
@@ -44,57 +47,63 @@ export default function ShablonlarPage() {
           input: { name: name.trim(), length: L, width: W, thickness: T },
         },
       });
-      setMsg({ ok: true, text: `Shablon "${name.trim()}" saqlandi.` });
+      setMsg({ ok: true, text: t('tpl.saved', { name: name.trim() }) });
       setName('');
       await refetch();
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
 
-  if (loading) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (loading) return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+    return (
+      <p className="text-red-600 text-sm">
+        {t('common.errorPrefix', { msg: ts(error.message) })}
+      </p>
+    );
 
   const templates = data?.productTemplates ?? [];
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <h1 className="text-xl font-bold">Mahsulot shablonlari</h1>
+      <h1 className="text-xl font-bold">{t('tpl.title')}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
         {/* ─── Ro'yxat ─── */}
         <section className="card overflow-hidden order-2 lg:order-1">
           {templates.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-500">
-              Hozircha shablon yo&apos;q — o&apos;ngdan qo&apos;shing.
+              {t('tpl.empty')}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-[11px] tracking-wider text-neutral-400 border-b border-neutral-100">
-                    <th className="px-5 py-3 font-semibold">NOMI</th>
-                    <th className="px-5 py-3 font-semibold text-right">
-                      O&apos;LCHAM (m)
+                    <th className="px-5 py-3 font-semibold">
+                      {t('tpl.col.name')}
                     </th>
                     <th className="px-5 py-3 font-semibold text-right">
-                      HAJM / DONA
+                      {t('tpl.col.size')}
+                    </th>
+                    <th className="px-5 py-3 font-semibold text-right">
+                      {t('tpl.col.volume')}
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-50">
-                  {templates.map((t) => (
-                    <tr key={t.id}>
-                      <td className="px-5 py-3.5 font-medium">{t.name}</td>
+                  {templates.map((row) => (
+                    <tr key={row.id}>
+                      <td className="px-5 py-3.5 font-medium">{row.name}</td>
                       <td className="px-5 py-3.5 text-right tabular-nums text-neutral-600">
-                        {t.length} × {t.width} × {t.thickness}
+                        {row.length} × {row.width} × {row.thickness}
                       </td>
                       <td className="px-5 py-3.5 text-right tabular-nums font-semibold">
-                        {t.volumePerPiece.toFixed(4)} m³
+                        {row.volumePerPiece.toFixed(4)} m³
                       </td>
                     </tr>
                   ))}
@@ -109,26 +118,28 @@ export default function ShablonlarPage() {
           onSubmit={onSubmit}
           className="card p-5 grid gap-4 order-1 lg:order-2 lg:sticky lg:top-20"
         >
-          <h2 className="font-semibold text-sm">+ Yangi shablon</h2>
+          <h2 className="font-semibold text-sm">{t('tpl.new')}</h2>
           <label className="grid gap-1.5">
-            <span className="field-label">Nomi</span>
+            <span className="field-label">{t('common.name')}</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Pol taxta 6m"
+              placeholder={t('tpl.namePh')}
               className="field-input"
             />
           </label>
           <div className="grid grid-cols-3 gap-2.5">
             {(
               [
-                ['Uzunlik', length, setLength],
-                ['En', width, setWidth],
-                ['Qalinlik', thickness, setThickness],
-              ] as const
+                ['term.length', length, setLength],
+                ['term.width', width, setWidth],
+                ['term.thickness', thickness, setThickness],
+              ] as [MsgKey, string, (v: string) => void][]
             ).map(([lab, val, set]) => (
               <label key={lab} className="grid gap-1.5">
-                <span className="field-label text-xs">{lab} (m)</span>
+                <span className="field-label text-xs">
+                  {t('tpl.unit', { label: t(lab) })}
+                </span>
                 <input
                   value={val}
                   onChange={(e) => set(e.target.value)}
@@ -140,7 +151,7 @@ export default function ShablonlarPage() {
           </div>
 
           <div className="bg-brand-faint border border-brand/15 rounded-xl px-4 py-3 text-sm flex justify-between">
-            <span className="text-neutral-500">Bir dona hajmi</span>
+            <span className="text-neutral-500">{t('tpl.perPiece')}</span>
             <b className="tabular-nums">
               {vpp > 0 ? vpp.toFixed(4) : '—'} m³
             </b>
@@ -162,7 +173,7 @@ export default function ShablonlarPage() {
             disabled={saving || name.trim().length < 2 || vpp <= 0}
             className="btn-primary"
           >
-            {saving ? 'Saqlanmoqda…' : 'Shablonni saqlash'}
+            {saving ? t('common.saving') : t('tpl.submit')}
           </button>
         </form>
       </div>

@@ -15,6 +15,9 @@ import {
   parseMoney,
   parseQty,
 } from '../../../lib/format';
+import { dateFmt } from '../../../lib/format';
+import { useI18n } from '../../../lib/i18n';
+import { MsgKey } from '../../../lib/i18n/messages';
 import { roundLogVolumeM3 } from '../../../lib/wood';
 import { session } from '../../../lib/session';
 
@@ -49,7 +52,11 @@ interface PageData {
   shipments: ShipmentRow[];
 }
 
+/** Kalkulyator maydoni: [yorliq kaliti, qiymat, setter, klaviatura rejimi]. */
+type CalcField = [MsgKey, string, (v: string) => void, 'decimal' | 'numeric'];
+
 export default function KirimPage() {
+  const { t, ts } = useI18n();
   const { data, loading, error, refetch } = useQuery<PageData>(KIRIM_PAGE);
   const { data: rateData } = useQuery<{
     latestExchangeRate: { rubToUzs: number };
@@ -145,7 +152,7 @@ export default function KirimPage() {
 
   async function addFura() {
     if (fTruck.trim().length < 3 || fOwner.trim().length < 2) {
-      setMsg({ ok: false, text: 'Fura raqami va ega ismini kiriting.' });
+      setMsg({ ok: false, text: t('pur.needShipmentFields') });
       return;
     }
     setMsg(null);
@@ -173,12 +180,17 @@ export default function KirimPage() {
       setFCustoms('');
       setMsg({
         ok: true,
-        text: `Fura ${res.data.createShipment.truckNumber} qo'shildi va tanlandi.`,
+        text: t('pur.shipmentAdded', {
+          number: res.data.createShipment.truckNumber,
+        }),
       });
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Fura qo‘shishda xato.',
+        text: ts(
+          err instanceof Error ? err.message : null,
+          'pur.shipmentError',
+        ),
       });
     }
   }
@@ -205,7 +217,11 @@ export default function KirimPage() {
       });
       setMsg({
         ok: true,
-        text: `Kirim saqlandi — ${fmt(vol)} m³ ${woodType.trim()} omborga LOT bo'lib tushdi (tannarx ${fmt(costPerM3)} so'm/m³).`,
+        text: t('pur.saved', {
+          vol: fmt(vol),
+          wood: woodType.trim(),
+          cost: fmt(costPerM3),
+        }),
       });
       setVolume('');
       setPieces('');
@@ -214,14 +230,18 @@ export default function KirimPage() {
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
 
-  if (loading) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (loading) return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+    return (
+      <p className="text-red-600 text-sm">
+        {t('common.errorPrefix', { msg: ts(error.message) })}
+      </p>
+    );
 
   const purchases = [...(data?.purchases ?? [])].sort(
     (a, b) => +new Date(b.date) - +new Date(a.date),
@@ -230,7 +250,7 @@ export default function KirimPage() {
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <h1 className="text-xl font-bold">Kirim</h1>
+      <h1 className="text-xl font-bold">{t('pur.title')}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
         {/* ─── FORMA ─── */}
@@ -238,9 +258,7 @@ export default function KirimPage() {
           {/* Taxta'da izoh: import Yog'och bo'limida */}
           {isLumber && (
             <p className="text-xs text-neutral-500 bg-brand-faint border border-brand/15 rounded-lg px-3.5 py-2.5">
-              Bu bo&apos;limda faqat <b>mahalliy kirim</b> qilinadi. Rossiya
-              importi (furalar bilan) — <b>Yog&apos;och sotuvi</b> bo&apos;limida;
-              xomashyo esa asosan <b>Ichki transfer</b> orqali keladi.
+              {t('pur.lumberNote')}
             </p>
           )}
 
@@ -251,16 +269,21 @@ export default function KirimPage() {
                 {
                   value: 'RUSSIA_IMPORT',
                   icon: '🚛',
-                  title: 'Rossiya importi',
-                  desc: 'Furaga bog‘lanadi · narx RUB · kurs muzlatiladi',
+                  title: 'pur.src.import.title',
+                  desc: 'pur.src.import.desc',
                 },
                 {
                   value: 'LOCAL_WHOLESALE',
                   icon: '🏠',
-                  title: 'Mahalliy ulgurji',
-                  desc: 'Furasiz · narx so‘mda',
+                  title: 'pur.src.local.title',
+                  desc: 'pur.src.local.desc',
                 },
-              ] as const
+              ] as const satisfies readonly {
+                value: 'RUSSIA_IMPORT' | 'LOCAL_WHOLESALE';
+                icon: string;
+                title: MsgKey;
+                desc: MsgKey;
+              }[]
             )
               .filter((s) => !isLumber || s.value === 'LOCAL_WHOLESALE')
               .map((s) => (
@@ -276,10 +299,10 @@ export default function KirimPage() {
               >
                 <span className="text-xl">{s.icon}</span>
                 <span className="block font-semibold text-sm mt-1.5">
-                  {s.title}
+                  {t(s.title)}
                 </span>
                 <span className="block text-[11px] text-neutral-500 leading-snug mt-1">
-                  {s.desc}
+                  {t(s.desc)}
                 </span>
               </button>
             ))}
@@ -288,40 +311,40 @@ export default function KirimPage() {
           {/* Fura (faqat import) */}
           {isImport && (
             <div className="grid gap-1.5 animate-[fadeIn_.3s_ease]">
-              <span className="field-label">Fura</span>
+              <span className="field-label">{t('pur.shipment')}</span>
               <select
                 value={shipmentId}
                 onChange={(e) => setShipmentId(e.target.value)}
                 className="field-input"
               >
-                <option value="">— Fura tanlang —</option>
+                <option value="">{t('pur.pickShipment')}</option>
                 {shipments.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.truckNumber}
                     {s.truckColor ? ` · ${s.truckColor}` : ''}
                   </option>
                 ))}
-                <option value="__new">➕ Yangi fura qo&apos;shish</option>
+                <option value="__new">{t('pur.newShipment')}</option>
               </select>
 
               {/* Inline yangi fura formasi */}
               {shipmentId === '__new' && (
                 <div className="mt-2 rounded-xl border border-brand/25 bg-brand-faint/40 p-3.5 grid gap-2.5 animate-[fadeIn_.25s_ease]">
                   <span className="text-xs font-semibold text-brand">
-                    🚛 Yangi fura ma&apos;lumotlari
+                    {t('pur.newShipmentTitle')}
                   </span>
                   <div className="grid grid-cols-2 gap-2.5">
                     <input
                       value={fTruck}
                       onChange={(e) => setFTruck(e.target.value)}
-                      placeholder="Fura raqami (AA777BB)"
+                      placeholder={t('pur.fTruckPh')}
                       className="field-input !py-2"
                       autoFocus
                     />
                     <input
                       value={fColor}
                       onChange={(e) => setFColor(e.target.value)}
-                      placeholder="Rang (ixtiyoriy)"
+                      placeholder={t('pur.fColorPh')}
                       className="field-input !py-2"
                     />
                   </div>
@@ -329,14 +352,14 @@ export default function KirimPage() {
                     <input
                       value={fOwner}
                       onChange={(e) => setFOwner(e.target.value)}
-                      placeholder="Ega ismi"
+                      placeholder={t('pur.fOwnerPh')}
                       className="field-input !py-2"
                     />
                     <input
                       value={fPhone}
                       onChange={(e) => setFPhone(e.target.value)}
                       inputMode="tel"
-                      placeholder="Telefon"
+                      placeholder={t('pur.fPhonePh')}
                       className="field-input !py-2"
                     />
                   </div>
@@ -347,7 +370,7 @@ export default function KirimPage() {
                         setFTransport(formatMoneyInput(e.target.value))
                       }
                       inputMode="numeric"
-                      placeholder="Transport (so'm)"
+                      placeholder={t('pur.fTransportPh')}
                       className="field-input !py-2"
                     />
                     <input
@@ -356,7 +379,7 @@ export default function KirimPage() {
                         setFCustoms(formatMoneyInput(e.target.value))
                       }
                       inputMode="numeric"
-                      placeholder="Bojxona (so'm)"
+                      placeholder={t('pur.fCustomsPh')}
                       className="field-input !py-2"
                     />
                   </div>
@@ -367,14 +390,14 @@ export default function KirimPage() {
                       disabled={addingFura}
                       className="rounded-xl bg-brand text-white px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
                     >
-                      {addingFura ? 'Qo‘shilmoqda…' : 'Furani qo‘shish'}
+                      {addingFura ? t('pur.addingShipment') : t('pur.addShipment')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setShipmentId('')}
                       className="rounded-xl border border-neutral-200 text-neutral-500 px-4 py-2 text-sm font-semibold hover:bg-neutral-50 transition-colors"
                     >
-                      Bekor
+                      {t('pur.cancelShort')}
                     </button>
                   </div>
                 </div>
@@ -382,8 +405,7 @@ export default function KirimPage() {
 
               {shipments.length === 0 && shipmentId !== '__new' && (
                 <span className="text-xs text-amber-700">
-                  Fura yo&apos;q — «➕ Yangi fura qo&apos;shish»ni tanlab shu
-                  yerda qo&apos;shing.
+                  {t('pur.noShipments')}
                 </span>
               )}
             </div>
@@ -391,20 +413,20 @@ export default function KirimPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="grid gap-1.5">
-              <span className="field-label">Yog&apos;och turi</span>
+              <span className="field-label">{t('pur.woodType')}</span>
               <input
                 value={woodType}
                 onChange={(e) => setWoodType(e.target.value)}
-                placeholder="Qarag'ay"
+                placeholder={t('pur.woodTypePh')}
                 className="field-input"
               />
             </label>
             <label className="grid gap-1.5">
-              <span className="field-label">Navi</span>
+              <span className="field-label">{t('pur.grade')}</span>
               <input
                 value={grade}
                 onChange={(e) => setGrade(e.target.value)}
-                placeholder="1-nav"
+                placeholder={t('pur.gradePh')}
                 className="field-input"
               />
             </label>
@@ -414,7 +436,7 @@ export default function KirimPage() {
             className={`grid gap-4 ${isImport ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}
           >
             <label className="grid gap-1.5">
-              <span className="field-label">Hajm (m³)</span>
+              <span className="field-label">{t('pur.volume')}</span>
               <input
                 value={volume}
                 onChange={(e) => setVolume(e.target.value)}
@@ -424,7 +446,7 @@ export default function KirimPage() {
               />
             </label>
             <label className="grid gap-1.5">
-              <span className="field-label">Dona soni (ixtiyoriy)</span>
+              <span className="field-label">{t('pur.pieces')}</span>
               <input
                 value={pieces}
                 onChange={(e) => setPieces(formatMoneyInput(e.target.value))}
@@ -435,7 +457,7 @@ export default function KirimPage() {
             </label>
             <label className="grid gap-1.5">
               <span className="field-label flex items-center gap-1.5">
-                Narx /
+                {t('pur.priceLabel')}
                 <span className="inline-flex rounded-md border border-neutral-200 overflow-hidden">
                   {(['M3', 'DONA'] as const).map((m) => (
                     <button
@@ -448,12 +470,12 @@ export default function KirimPage() {
                           : 'text-neutral-500 hover:bg-neutral-100'
                       }`}
                     >
-                      {m === 'M3' ? 'm³' : 'dona'}
+                      {m === 'M3' ? 'm³' : t('pur.perPiece')}
                     </button>
                   ))}
                 </span>
                 <span className="text-neutral-400">
-                  ({isImport ? 'RUB' : 'so‘m'})
+                  ({isImport ? 'RUB' : t('common.som')})
                 </span>
               </span>
               <input
@@ -474,14 +496,16 @@ export default function KirimPage() {
               {donaMode && (
                 <span className="text-[11px] text-neutral-400">
                   {pcs > 0 && vol > 0
-                    ? `≈ ${fmt(sentUnitPrice)} ${isImport ? 'RUB' : 'so‘m'}/m³`
-                    : 'Dona sonini kiriting'}
+                    ? `≈ ${fmt(sentUnitPrice)} ${
+                        isImport ? 'RUB' : t('common.som')
+                      }/m³`
+                    : t('pur.needPieces')}
                 </span>
               )}
             </label>
             {isImport && (
               <label className="grid gap-1.5">
-                <span className="field-label">Kurs (1 RUB = ? so&apos;m)</span>
+                <span className="field-label">{t('pur.rate')}</span>
                 <input
                   value={rate}
                   onChange={(e) => setRate(e.target.value)}
@@ -495,7 +519,7 @@ export default function KirimPage() {
                     onClick={() => setRate(String(suggestedRate))}
                     className="text-xs text-brand hover:underline text-left"
                   >
-                    Bugungi kurs: {suggestedRate} — qo&apos;llash
+                    {t('pur.applyRate', { rate: suggestedRate })}
                   </button>
                 )}
               </label>
@@ -509,7 +533,7 @@ export default function KirimPage() {
               onClick={() => setShowCalc((v) => !v)}
               className="w-full flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold text-brand"
             >
-              🪵 Yumaloq yog&apos;och hajm kalkulyatori
+              {t('pur.calcTitle')}
               <span className="ml-auto text-xs opacity-70">
                 {showCalc ? '▲' : '▼'}
               </span>
@@ -520,10 +544,10 @@ export default function KirimPage() {
                 <div className="flex flex-wrap gap-2">
                   {(
                     [
-                      ['SILINDR', '🪵 Silindr'],
-                      ['KONUS', '📐 Konus'],
-                      ['TAXTA', '🟫 Taxta'],
-                    ] as const
+                      ['SILINDR', 'pur.shape.cyl'],
+                      ['KONUS', 'pur.shape.cone'],
+                      ['TAXTA', 'pur.shape.board'],
+                    ] as [typeof cShape, MsgKey][]
                   ).map(([v, lab]) => (
                     <button
                       key={v}
@@ -535,7 +559,7 @@ export default function KirimPage() {
                           : 'border-neutral-200 text-neutral-500 hover:border-brand/40'
                       }`}
                     >
-                      {lab}
+                      {t(lab)}
                     </button>
                   ))}
                 </div>
@@ -546,28 +570,29 @@ export default function KirimPage() {
                     cShape === 'SILINDR' ? 'sm:grid-cols-3' : 'sm:grid-cols-4'
                   }`}
                 >
-                  {(cShape === 'SILINDR'
-                    ? ([
-                        ['Diametr ⌀ (sm)', cDiam, setCDiam, 'decimal'],
-                        ['Uzunlik (m)', cLen, setCLen, 'decimal'],
-                        ['Dona', cQty, setCQty, 'numeric'],
-                      ] as const)
-                    : cShape === 'KONUS'
+                  {(
+                    cShape === 'SILINDR'
                       ? ([
-                          ['Bosh ⌀ (sm)', cBase, setCBase, 'decimal'],
-                          ['Uch ⌀ (sm)', cTop, setCTop, 'decimal'],
-                          ['Uzunlik (m)', cLen, setCLen, 'decimal'],
-                          ['Dona', cQty, setCQty, 'numeric'],
-                        ] as const)
-                      : ([
-                          ['Uzunlik (m)', cLen, setCLen, 'decimal'],
-                          ['En (m)', cW, setCW, 'decimal'],
-                          ['Qalinlik (m)', cT, setCT, 'decimal'],
-                          ['Dona', cQty, setCQty, 'numeric'],
-                        ] as const)
+                          ['pur.calc.diameter', cDiam, setCDiam, 'decimal'],
+                          ['pur.calc.length', cLen, setCLen, 'decimal'],
+                          ['pur.calc.qty', cQty, setCQty, 'numeric'],
+                        ] as CalcField[])
+                      : cShape === 'KONUS'
+                        ? ([
+                            ['pur.calc.base', cBase, setCBase, 'decimal'],
+                            ['pur.calc.top', cTop, setCTop, 'decimal'],
+                            ['pur.calc.length', cLen, setCLen, 'decimal'],
+                            ['pur.calc.qty', cQty, setCQty, 'numeric'],
+                          ] as CalcField[])
+                        : ([
+                            ['pur.calc.length', cLen, setCLen, 'decimal'],
+                            ['pur.calc.width', cW, setCW, 'decimal'],
+                            ['pur.calc.thickness', cT, setCT, 'decimal'],
+                            ['pur.calc.qty', cQty, setCQty, 'numeric'],
+                          ] as CalcField[])
                   ).map(([lab, val, set, mode]) => (
                     <label key={lab} className="grid gap-1">
-                      <span className="field-label text-xs">{lab}</span>
+                      <span className="field-label text-xs">{t(lab)}</span>
                       <input
                         value={val}
                         onChange={(e) =>
@@ -578,7 +603,7 @@ export default function KirimPage() {
                           )
                         }
                         inputMode={mode}
-                        placeholder={lab === 'Dona' ? '100' : ''}
+                        placeholder={lab === 'pur.calc.qty' ? '100' : ''}
                         className="field-input !py-2"
                       />
                     </label>
@@ -586,14 +611,12 @@ export default function KirimPage() {
                 </div>
 
                 <p className="text-xs text-neutral-600">
-                  Bir dona:{' '}
-                  <b className="tabular-nums">{calcPer.toFixed(3)}</b> m³ · Jami:{' '}
-                  <b className="tabular-nums text-brand">
-                    {calcTotal.toFixed(3)}
-                  </b>{' '}
-                  m³ —{' '}
+                  {t('pur.calc.result', {
+                    per: calcPer.toFixed(3),
+                    total: calcTotal.toFixed(3),
+                  })}{' '}
                   <span className="text-emerald-600 font-medium">
-                    Hajm avtomatik to&apos;ldirildi ✓
+                    {t('pur.calc.autofilled')}
                   </span>
                 </p>
               </div>
@@ -613,31 +636,31 @@ export default function KirimPage() {
           )}
 
           <button disabled={!canSubmit} className="btn-primary sm:max-w-xs">
-            {saving ? 'Saqlanmoqda…' : 'Kirimni saqlash'}
+            {saving ? t('common.saving') : t('pur.submit')}
           </button>
         </form>
 
         {/* ─── JONLI TANNARX PANELI ─── */}
         <aside className="bg-brand-faint border border-brand/20 rounded-2xl p-5 grid gap-3 lg:sticky lg:top-20">
           <h2 className="text-sm font-bold text-brand tracking-wide">
-            Tizim avtomatik hisoblaydi
+            {t('pur.panelTitle')}
           </h2>
           <dl className="grid gap-2.5 text-sm">
             <div className="flex justify-between">
-              <dt className="text-neutral-500">Hajm</dt>
+              <dt className="text-neutral-500">{t('pur.panel.volume')}</dt>
               <dd className="font-semibold tabular-nums">
                 {vol > 0 ? fmt(vol) : '—'} m³
               </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-neutral-500">Dona</dt>
+              <dt className="text-neutral-500">{t('pur.panel.pieces')}</dt>
               <dd className="font-semibold tabular-nums">
                 {parseQty(pieces) > 0 ? fmt(parseQty(pieces)) : '—'}
               </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-neutral-500">
-                Jami {isImport ? '(RUB)' : "(so'm)"}
+                {isImport ? t('pur.panel.totalRub') : t('pur.panel.totalUzs')}
               </dt>
               <dd className="font-semibold tabular-nums">
                 {totalOriginal > 0 ? fmt(totalOriginal) : '—'}
@@ -645,36 +668,36 @@ export default function KirimPage() {
             </div>
             {isImport && (
               <div className="flex justify-between border-b border-brand/10 pb-2.5">
-                <dt className="text-neutral-500">Kurs</dt>
+                <dt className="text-neutral-500">{t('pur.panel.rate')}</dt>
                 <dd className="font-semibold tabular-nums">
                   {rateNum > 0 ? rateNum : '—'}
                 </dd>
               </div>
             )}
             <div className="flex justify-between">
-              <dt className="text-neutral-500">Tannarx / m³</dt>
+              <dt className="text-neutral-500">{t('pur.panel.costPerM3')}</dt>
               <dd className="font-semibold tabular-nums">
-                {costPerM3 > 0 ? fmt(costPerM3) : '—'} so&apos;m
+                {costPerM3 > 0 ? fmt(costPerM3) : '—'} {t('common.som')}
               </dd>
             </div>
           </dl>
 
           <div className="bg-white rounded-xl p-4 border border-brand/15">
             <div className="text-[11px] tracking-wider text-neutral-400 font-semibold">
-              JAMI TANNARX
+              {t('pur.panel.grandTotal')}
             </div>
             <div className="text-2xl font-bold tabular-nums mt-0.5">
               {totalUzs > 0 ? fmt(totalUzs) : '0'}{' '}
               <span className="text-sm font-medium text-neutral-400">
-                so&apos;m
+                {t('common.som')}
               </span>
             </div>
           </div>
           <p className="text-[11px] text-neutral-400 leading-relaxed">
             {isImport
-              ? 'Kurs shu kirim uchun muzlatiladi — keyin kurs o‘zgarsa ham bu partiya o‘z tannarxida qoladi.'
-              : 'Mahalliy kirim so‘mda — kurs ishlatilmaydi.'}{' '}
-            Saqlangач omborда yangi LOT paydo bo&apos;ladi.
+              ? t('pur.panel.importNote')
+              : t('pur.panel.localNote')}{' '}
+            {t('pur.panel.lotNote')}
           </p>
         </aside>
       </div>
@@ -682,25 +705,31 @@ export default function KirimPage() {
       {/* ─── KIRIMLAR TARIXI ─── */}
       <section className="card overflow-hidden">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
-          Kirimlar tarixi
+          {t('pur.history')}
         </h2>
         {purchases.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-neutral-500">
-            Hozircha kirim yo&apos;q.
-          </p>
+          <p className="px-5 py-6 text-sm text-neutral-500">{t('pur.empty')}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[11px] tracking-wider text-neutral-400 border-b border-neutral-100">
-                  <th className="px-5 py-3 font-semibold">SANA</th>
-                  <th className="px-5 py-3 font-semibold">MANBA</th>
-                  <th className="px-5 py-3 font-semibold">YOG&apos;OCH</th>
-                  <th className="px-5 py-3 font-semibold text-right">HAJM</th>
-                  <th className="px-5 py-3 font-semibold text-right">DONA</th>
-                  <th className="px-5 py-3 font-semibold text-right">NARX</th>
+                  <th className="px-5 py-3 font-semibold">{t('pur.col.date')}</th>
+                  <th className="px-5 py-3 font-semibold">
+                    {t('pur.col.source')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold">{t('pur.col.wood')}</th>
                   <th className="px-5 py-3 font-semibold text-right">
-                    JAMI (SO&apos;M)
+                    {t('pur.col.volume')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-right">
+                    {t('pur.col.pieces')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-right">
+                    {t('pur.col.price')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-right">
+                    {t('pur.col.total')}
                   </th>
                 </tr>
               </thead>
@@ -708,7 +737,7 @@ export default function KirimPage() {
                 {purchases.map((p) => (
                   <tr key={p.id}>
                     <td className="px-5 py-3.5 text-neutral-500">
-                      {new Date(p.date).toLocaleDateString('uz-UZ')}
+                      {dateFmt(p.date)}
                     </td>
                     <td className="px-5 py-3.5">
                       {p.source === 'RUSSIA_IMPORT' ? (
@@ -717,7 +746,7 @@ export default function KirimPage() {
                         </span>
                       ) : (
                         <span className="text-[11px] font-medium bg-emerald-50 text-emerald-700 rounded-full px-2.5 py-1">
-                          🏠 Mahalliy
+                          {t('pur.localTag')}
                         </span>
                       )}
                     </td>
@@ -738,7 +767,7 @@ export default function KirimPage() {
                       {fmt(p.unitPrice)} {p.currency}
                       {p.currency === 'RUB' && (
                         <span className="block text-[10px] text-neutral-400">
-                          kurs {p.exchangeRate}
+                          {t('pur.rateTag', { rate: p.exchangeRate })}
                         </span>
                       )}
                     </td>

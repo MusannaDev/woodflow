@@ -3,6 +3,8 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { dateFmt } from '../lib/format';
+import { useI18n, TFunc } from '../lib/i18n';
 import {
   MARK_ALL_NOTIFICATIONS_READ,
   MARK_NOTIFICATION_READ,
@@ -20,21 +22,22 @@ interface Noti {
   createdAt: string;
 }
 
-function timeAgo(s: string): string {
+function timeAgo(s: string, t: TFunc): string {
   const diff = Date.now() - new Date(s).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return 'hozir';
-  if (m < 60) return `${m} daq oldin`;
+  if (m < 1) return t('noti.now');
+  if (m < 60) return t('noti.minutes', { n: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} soat oldin`;
+  if (h < 24) return t('noti.hours', { n: h });
   const d = Math.floor(h / 24);
-  if (d === 1) return 'kecha';
-  if (d < 7) return `${d} kun oldin`;
-  return new Date(s).toLocaleDateString('uz-UZ');
+  if (d === 1) return t('noti.yesterday');
+  if (d < 7) return t('noti.days', { n: d });
+  return dateFmt(s);
 }
 
 /** dark=true — qorong'u sidebar/CEO header uchun (oq ikonka). */
 export function NotificationBell({ dark = false }: { dark?: boolean }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -69,7 +72,7 @@ export function NotificationBell({ dark = false }: { dark?: boolean }) {
     <div className="relative flex-none">
       <button
         onClick={() => setOpen((v) => !v)}
-        aria-label="Bildirishnomalar"
+        aria-label={t('noti.title')}
         className={`relative w-9 h-9 grid place-items-center rounded-xl transition-colors ${
           dark
             ? 'hover:bg-white/10 text-white/80'
@@ -87,21 +90,21 @@ export function NotificationBell({ dark = false }: { dark?: boolean }) {
       {open && (
         <>
           <button
-            aria-label="Yopish"
+            aria-label={t('common.close')}
             onClick={() => setOpen(false)}
             className="fixed inset-0 z-40 cursor-default"
           />
           <div className="absolute right-0 mt-2 z-50 w-[min(92vw,360px)] bg-white rounded-2xl shadow-2xl border border-neutral-100 overflow-hidden animate-[fadeIn_.15s_ease]">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-neutral-100">
               <span className="font-semibold text-sm flex-1">
-                Bildirishnomalar
+                {t('noti.title')}
               </span>
               {unread > 0 && (
                 <button
                   onClick={onMarkAll}
                   className="text-xs text-brand font-medium hover:underline"
                 >
-                  Hammasini o&apos;qildim
+                  {t('noti.markAll')}
                 </button>
               )}
             </div>
@@ -109,7 +112,7 @@ export function NotificationBell({ dark = false }: { dark?: boolean }) {
             <div className="max-h-[60vh] overflow-y-auto">
               {list.length === 0 ? (
                 <p className="px-4 py-10 text-sm text-neutral-400 text-center">
-                  🔔 Bildirishnoma yo&apos;q
+                  {t('noti.empty')}
                 </p>
               ) : (
                 <ul className="divide-y divide-neutral-50">
@@ -136,7 +139,7 @@ export function NotificationBell({ dark = false }: { dark?: boolean }) {
                             </span>
                           )}
                           <span className="block text-[11px] text-neutral-400 mt-1">
-                            {timeAgo(n.createdAt)}
+                            {timeAgo(n.createdAt, t)}
                           </span>
                         </span>
                       </button>

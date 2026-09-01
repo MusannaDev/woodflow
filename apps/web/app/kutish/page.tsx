@@ -3,6 +3,9 @@
 import { useLazyQuery } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { useI18n } from '../../lib/i18n';
+import { MsgKey } from '../../lib/i18n/messages';
 import { MY_AUTH } from '../../lib/queries';
 import { AuthData, session } from '../../lib/session';
 
@@ -13,35 +16,36 @@ import { AuthData, session } from '../../lib/session';
 
 const STATES: Record<
   string,
-  { icon: string; title: string; desc: string; tone: string }
+  { icon: string; title: MsgKey; desc: MsgKey; tone: string }
 > = {
   CEO_APPROVAL: {
     icon: '⏳',
-    title: 'CEO tasdig‘i kutilmoqda',
-    desc: "Biznesingiz so'rovi yuborildi. CEO tasdiqlagach, ikkala biznes makoningiz avtomatik ochiladi.",
+    title: 'wait.CEO_APPROVAL.title',
+    desc: 'wait.CEO_APPROVAL.desc',
     tone: 'amber',
   },
   OWNER_APPROVAL: {
     icon: '🤝',
-    title: 'Egangiz tasdig‘i kutilmoqda',
-    desc: "So'rovingiz biznes egasiga yuborildi. Tasdiqlangach ishchi sifatida kirasiz.",
+    title: 'wait.OWNER_APPROVAL.title',
+    desc: 'wait.OWNER_APPROVAL.desc',
     tone: 'amber',
   },
   WAITING_EMPLOYEE: {
     icon: '📞',
-    title: 'Egangiz sizni hali qo‘shmagan',
-    desc: "Biznes egasiga ayting — u sizni 'Ishchilar' bo'limida telefon raqamingiz bilan qo'shsin. Shundan so'ng bu yerda so'rov paydo bo'ladi.",
+    title: 'wait.WAITING_EMPLOYEE.title',
+    desc: 'wait.WAITING_EMPLOYEE.desc',
     tone: 'blue',
   },
   REJECTED: {
     icon: '🚫',
-    title: 'So‘rov rad etildi',
-    desc: 'Afsuski, biznes ochish so‘rovingiz rad etildi. Savollar bo‘lsa administratsiya bilan bog‘laning.',
+    title: 'wait.REJECTED.title',
+    desc: 'wait.REJECTED.desc',
     tone: 'red',
   },
 };
 
 export default function KutishPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
@@ -95,11 +99,13 @@ export default function KutishPage() {
             'radial-gradient(700px 400px at -10% 105%, rgba(176,106,36,0.08), transparent 55%)',
         }}
       />
+      <LanguageSwitcher variant="pill" className="absolute top-5 right-5" />
+
       <div className="glass rounded-3xl p-8 sm:p-10 max-w-md w-full text-center animate-[fadeIn_.4s_ease]">
         <div className="text-5xl">{s.icon}</div>
-        <h1 className="text-xl font-bold mt-4 tracking-tight">{s.title}</h1>
+        <h1 className="text-xl font-bold mt-4 tracking-tight">{t(s.title)}</h1>
         <p className="text-sm text-neutral-500 mt-2.5 leading-relaxed">
-          {s.desc}
+          {t(s.desc)}
         </p>
 
         <div className="grid gap-2.5 mt-8">
@@ -109,14 +115,14 @@ export default function KutishPage() {
               disabled={checking}
               className="btn-primary"
             >
-              {checking ? 'Tekshirilmoqda…' : 'Holatni tekshirish'}
+              {checking ? t('wait.checking') : t('wait.check')}
             </button>
           )}
           <button
             onClick={logout}
             className="text-sm text-neutral-400 hover:text-neutral-700 transition-colors py-2"
           >
-            Chiqish →
+            {t('common.logoutArrow')}
           </button>
         </div>
       </div>

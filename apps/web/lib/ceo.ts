@@ -1,15 +1,20 @@
 /** CEO panel bo'limlari uchun umumiy yordamchilar, tiplar va konstantalar. */
 
-export const uzDate = (s: string) => new Date(s).toLocaleDateString('uz-UZ');
-export const fmtMoney = (n: number) =>
-  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 }).format(n);
+import { dateFmt, fmt } from './format';
+import { MsgKey } from './i18n/messages';
 
-export const STATUS: Record<string, { label: string; cls: string }> = {
-  ACTIVE: { label: 'Faol', cls: 'bg-emerald-100 text-emerald-700' },
-  PENDING: { label: 'Kutmoqda', cls: 'bg-amber-100 text-amber-700' },
-  REJECTED: { label: 'Rad etilgan', cls: 'bg-red-100 text-red-600' },
+/** Sana — joriy tilda (nom tarixiy sabablarga ko'ra `uzDate`). */
+export const uzDate = (s: string) => dateFmt(s);
+export const fmtMoney = (n: number) => fmt(n);
+
+/** Biznes holati — faqat ranglar; yorliq `bizStatus.*` kalitidan olinadi. */
+export const STATUS_CLS: Record<string, string> = {
+  ACTIVE: 'bg-emerald-100 text-emerald-700',
+  PENDING: 'bg-amber-100 text-amber-700',
+  REJECTED: 'bg-red-100 text-red-600',
 };
 
+/** Rol nishoni ranglari — kalit backend'dan keladigan `roleLabel`. */
 export const ROLE: Record<string, string> = {
   CEO: 'bg-purple-100 text-purple-700',
   Owner: 'bg-amber-100 text-amber-700',
@@ -17,35 +22,47 @@ export const ROLE: Record<string, string> = {
   '—': 'bg-neutral-100 text-neutral-400',
 };
 
-export const KIND: Record<string, { label: string; cls: string }> = {
-  BOTH: { label: "🌲🪵 Yog'och+Taxta", cls: 'bg-emerald-50 text-emerald-700' },
-  WOOD_ONLY: { label: "🌲 Yog'och", cls: 'bg-lime-50 text-lime-700' },
-  LUMBER_ONLY: { label: '🪵 Taxta', cls: 'bg-orange-50 text-orange-700' },
+/** Biznes turi nishoni ranglari; yorliq `kind.*` kalitidan. */
+export const KIND_CLS: Record<string, string> = {
+  BOTH: 'bg-emerald-50 text-emerald-700',
+  WOOD_ONLY: 'bg-lime-50 text-lime-700',
+  LUMBER_ONLY: 'bg-orange-50 text-orange-700',
 };
 
-export const KIND_OPTIONS = [
-  { value: 'BOTH', label: "Yog'och + Taxta", hint: 'ikkala makon' },
-  { value: 'WOOD_ONLY', label: "Faqat Yog'och", hint: 'bitta makon' },
-  { value: 'LUMBER_ONLY', label: 'Faqat Taxta', hint: 'bitta makon' },
+export const KIND_OPTIONS: {
+  value: string;
+  label: MsgKey;
+  hint: MsgKey;
+}[] = [
+  { value: 'BOTH', label: 'kindOpt.BOTH', hint: 'kindHint.two' },
+  { value: 'WOOD_ONLY', label: 'kindOpt.WOOD_ONLY', hint: 'kindHint.one' },
+  { value: 'LUMBER_ONLY', label: 'kindOpt.LUMBER_ONLY', hint: 'kindHint.one' },
 ];
 
-export const PSTATUS: Record<string, { label: string; cls: string }> = {
-  PENDING: { label: '⏳ Kutilmoqda', cls: 'bg-amber-100 text-amber-700' },
-  APPROVED: { label: '✓ Tasdiqlandi', cls: 'bg-emerald-100 text-emerald-700' },
-  REJECTED: { label: '✕ Rad etildi', cls: 'bg-red-100 text-red-600' },
+/** To'lov holati ranglari; yorliq `payStatus.*` kalitidan. */
+export const PSTATUS_CLS: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-700',
+  APPROVED: 'bg-emerald-100 text-emerald-700',
+  REJECTED: 'bg-red-100 text-red-600',
 };
 
-/** Biznes billing holatiga qarab nishon. */
+/**
+ * Biznes billing holatiga qarab nishon — tarjima kaliti va parametrlari
+ * bilan (matn komponentda `t()` orqali hosil qilinadi).
+ */
 export function billingBadge(o: {
   freeAccess: boolean;
   blocked: boolean;
   paidUntil: string | null;
-}): { label: string; cls: string } | null {
-  if (o.freeAccess) return { label: '🎁 Tekin', cls: 'bg-blue-50 text-blue-600' };
-  if (o.blocked) return { label: '🔒 Bloklangan', cls: 'bg-red-50 text-red-600' };
+}): { key: MsgKey; vars?: Record<string, string>; cls: string } | null {
+  if (o.freeAccess)
+    return { key: 'billing.free', cls: 'bg-blue-50 text-blue-600' };
+  if (o.blocked)
+    return { key: 'billing.blocked', cls: 'bg-red-50 text-red-600' };
   if (o.paidUntil)
     return {
-      label: `✓ ${uzDate(o.paidUntil)}`,
+      key: 'billing.paidUntil',
+      vars: { date: uzDate(o.paidUntil) },
       cls: 'bg-emerald-50 text-emerald-700',
     };
   return null;

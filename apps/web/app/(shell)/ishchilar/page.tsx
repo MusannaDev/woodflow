@@ -10,7 +10,9 @@ import {
   PENDING_WORKER_REQUESTS,
 } from '../../../lib/queries';
 import { session } from '../../../lib/session';
-import { formatMoneyInput, parseMoney } from '../../../lib/format';
+import { fmt, formatMoneyInput, parseMoney } from '../../../lib/format';
+import { useEnumLabel, useI18n } from '../../../lib/i18n';
+import { MsgKey } from '../../../lib/i18n/messages';
 
 /**
  * Ishchilar (UI hujjati §7.8): ism, telefon, lavozim, oylik turi.
@@ -30,16 +32,10 @@ interface EmployeeRow {
 }
 
 const SALARY_TYPES = [
-  { value: 'MONTHLY', label: 'Oylik' },
-  { value: 'DAILY', label: 'Kunlik' },
-  { value: 'PER_PIECE', label: 'Ishbay' },
-] as const;
-
-const typeLabel = (v: string) =>
-  SALARY_TYPES.find((t) => t.value === v)?.label ?? v;
-
-const fmt = (n: number) =>
-  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 }).format(n);
+  { value: 'MONTHLY', label: 'salType.MONTHLY' },
+  { value: 'DAILY', label: 'salType.DAILY' },
+  { value: 'PER_PIECE', label: 'salType.PER_PIECE' },
+] as const satisfies readonly { value: string; label: MsgKey }[];
 
 const currentPeriod = () => {
   const d = new Date();
@@ -55,6 +51,8 @@ interface WorkerRequestRow {
 }
 
 export default function IshchilarPage() {
+  const { t, ts } = useI18n();
+  const label = useEnumLabel();
   const { data, loading, error, refetch } =
     useQuery<{ employees: EmployeeRow[] }>(ISHCHILAR_PAGE);
   const [createEmployee, { loading: creating }] = useMutation(CREATE_EMPLOYEE);
@@ -101,7 +99,7 @@ export default function IshchilarPage() {
           },
         },
       });
-      setMsg({ ok: true, text: `Ishchi "${name.trim()}" qo'shildi.` });
+      setMsg({ ok: true, text: t('emp.added', { name: name.trim() }) });
       setName('');
       setPosition('');
       setSalaryAmount('');
@@ -112,7 +110,7 @@ export default function IshchilarPage() {
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
@@ -122,7 +120,7 @@ export default function IshchilarPage() {
     setMsg(null);
     const amountUzs = parseMoney(payAmount);
     if (amountUzs <= 0) {
-      setMsg({ ok: false, text: 'Summani kiriting.' });
+      setMsg({ ok: false, text: t('sal.needAmount') });
       return;
     }
     try {
@@ -133,7 +131,11 @@ export default function IshchilarPage() {
       });
       setMsg({
         ok: true,
-        text: `${emp.name}ga ${fmt(amountUzs)} so'm oylik to'landi (${payPeriod}) — avtomatik "Oylik" xarajatiga yozildi.`,
+        text: t('emp.paid', {
+          name: emp.name,
+          amount: fmt(amountUzs),
+          period: payPeriod,
+        }),
       });
       setPayId(null);
       setPayAmount('');
@@ -141,7 +143,7 @@ export default function IshchilarPage() {
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
@@ -155,34 +157,38 @@ export default function IshchilarPage() {
       setMsg({
         ok: approve,
         text: approve
-          ? `${req.userName} tasdiqlandi — endi ishchi sifatida kira oladi.`
-          : `${req.userName} so'rovi rad etildi.`,
+          ? t('emp.approved', { name: req.userName })
+          : t('emp.rejected', { name: req.userName }),
       });
       await Promise.all([refetchReqs(), refetch()]);
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
 
-  if (loading) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (loading) return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+    return (
+      <p className="text-red-600 text-sm">
+        {t('common.errorPrefix', { msg: ts(error.message) })}
+      </p>
+    );
 
   const employees = data?.employees ?? [];
   const workerRequests = reqData?.pendingWorkerRequests ?? [];
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <h1 className="text-xl font-bold">Ishchilar</h1>
+      <h1 className="text-xl font-bold">{t('emp.title')}</h1>
 
       {/* ── Kirish so'rovlari (egasi tasdiqlaydi) ── */}
       {workerRequests.length > 0 && (
         <section className="card overflow-hidden border-amber-200">
           <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm flex items-center gap-2">
-            🔔 Kirish so&apos;rovlari
+            {t('emp.requests')}
             <span className="text-[11px] font-bold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">
               {workerRequests.length}
             </span>
@@ -199,7 +205,9 @@ export default function IshchilarPage() {
                   </span>
                   <span className="block text-xs text-neutral-500">
                     {r.userPhone}
-                    {r.employeeName ? ` · ishchi yozuvi: ${r.employeeName}` : ''}
+                    {r.employeeName
+                      ? t('emp.reqEmployee', { name: r.employeeName })
+                      : ''}
                   </span>
                 </span>
                 <div className="flex gap-2">
@@ -208,14 +216,14 @@ export default function IshchilarPage() {
                     onClick={() => onDecideWorker(r, true)}
                     className="rounded-xl bg-emerald-600 text-white px-3.5 py-1.5 text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
                   >
-                    ✓ Tasdiqlash
+                    {t('emp.approve')}
                   </button>
                   <button
                     disabled={deciding}
                     onClick={() => onDecideWorker(r, false)}
                     className="rounded-xl border border-red-200 text-red-600 px-3.5 py-1.5 text-xs font-semibold hover:bg-red-50 disabled:opacity-40 transition-colors"
                   >
-                    ✕ Rad etish
+                    {t('emp.reject')}
                   </button>
                 </div>
               </li>
@@ -241,19 +249,25 @@ export default function IshchilarPage() {
         <section className="card overflow-hidden order-2 lg:order-1">
           {employees.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-500">
-              Hozircha ishchi yo&apos;q.
+              {t('emp.empty')}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-[11px] tracking-wider text-neutral-400 border-b border-neutral-100">
-                    <th className="px-5 py-3 font-semibold">ISHCHI</th>
-                    <th className="px-5 py-3 font-semibold">LAVOZIM</th>
-                    <th className="px-5 py-3 font-semibold text-right">
-                      MAOSH
+                    <th className="px-5 py-3 font-semibold">
+                      {t('emp.col.employee')}
                     </th>
-                    <th className="px-5 py-3 font-semibold text-right">AMAL</th>
+                    <th className="px-5 py-3 font-semibold">
+                      {t('emp.col.position')}
+                    </th>
+                    <th className="px-5 py-3 font-semibold text-right">
+                      {t('emp.col.salary')}
+                    </th>
+                    <th className="px-5 py-3 font-semibold text-right">
+                      {t('emp.col.action')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-50">
@@ -272,7 +286,7 @@ export default function IshchilarPage() {
                                   {emp.name}
                                   {emp.workspaceId === null && (
                                     <span className="text-[10px] font-medium bg-blue-50 text-blue-600 rounded-full px-1.5 py-0.5">
-                                      Umumiy
+                                      {t('emp.sharedTag')}
                                     </span>
                                   )}
                                 </span>
@@ -290,7 +304,7 @@ export default function IshchilarPage() {
                               {fmt(emp.salaryAmount)}
                             </span>
                             <span className="block text-[11px] text-neutral-400">
-                              {typeLabel(emp.salaryType)}
+                              {label('salType', emp.salaryType)}
                             </span>
                           </td>
                           <td className="px-5 py-3.5 text-right">
@@ -307,7 +321,7 @@ export default function IshchilarPage() {
                                   : 'border-brand bg-brand text-white hover:opacity-90'
                               }`}
                             >
-                              {isOpen ? 'Bekor qilish' : "Oylik to'lash"}
+                              {isOpen ? t('common.cancel') : t('emp.paySalary')}
                             </button>
                           </td>
                         </tr>
@@ -321,7 +335,7 @@ export default function IshchilarPage() {
                               >
                                 <label className="grid gap-1.5">
                                   <span className="field-label text-xs">
-                                    Summa (so&apos;m)
+                                    {t('sal.amount')}
                                   </span>
                                   <input
                                     value={payAmount}
@@ -333,7 +347,7 @@ export default function IshchilarPage() {
                                 </label>
                                 <label className="grid gap-1.5">
                                   <span className="field-label text-xs">
-                                    Davr (YYYY-MM)
+                                    {t('emp.periodYm')}
                                   </span>
                                   <input
                                     value={payPeriod}
@@ -345,7 +359,7 @@ export default function IshchilarPage() {
                                   disabled={paying}
                                   className="rounded-xl bg-brand text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-opacity"
                                 >
-                                  {paying ? 'To‘lanmoqda…' : "To'lash"}
+                                  {paying ? t('sal.paying') : t('sal.pay')}
                                 </button>
                               </form>
                             </td>
@@ -365,19 +379,19 @@ export default function IshchilarPage() {
           onSubmit={onCreate}
           className="card p-5 grid gap-4 order-1 lg:order-2 lg:sticky lg:top-20"
         >
-          <h2 className="font-semibold text-sm">+ Yangi ishchi</h2>
+          <h2 className="font-semibold text-sm">{t('emp.new')}</h2>
           <label className="grid gap-1.5">
-            <span className="field-label">Ism</span>
+            <span className="field-label">{t('cust.name')}</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Akmal"
+              placeholder={t('emp.namePh')}
               className="field-input"
             />
           </label>
           <div className="grid grid-cols-2 gap-2.5">
             <label className="grid gap-1.5">
-              <span className="field-label">Telefon</span>
+              <span className="field-label">{t('common.phone')}</span>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -386,28 +400,28 @@ export default function IshchilarPage() {
               />
             </label>
             <label className="grid gap-1.5">
-              <span className="field-label">Lavozim</span>
+              <span className="field-label">{t('emp.position')}</span>
               <input
                 value={position}
                 onChange={(e) => setPosition(e.target.value)}
-                placeholder="Omborchi"
+                placeholder={t('emp.positionPh')}
                 className="field-input"
               />
             </label>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             <label className="grid gap-1.5">
-              <span className="field-label">Maosh (so&apos;m)</span>
+              <span className="field-label">{t('emp.salary')}</span>
               <input
                 value={salaryAmount}
                 onChange={(e) => setSalaryAmount(formatMoneyInput(e.target.value))}
                 inputMode="numeric"
-                placeholder="1 500 000"
+                placeholder={t('emp.salaryPh')}
                 className="field-input"
               />
             </label>
             <label className="grid gap-1.5">
-              <span className="field-label">Turi</span>
+              <span className="field-label">{t('emp.salaryType')}</span>
               <select
                 value={salaryType}
                 onChange={(e) =>
@@ -415,9 +429,9 @@ export default function IshchilarPage() {
                 }
                 className="field-input"
               >
-                {SALARY_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
+                {SALARY_TYPES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {t(opt.label)}
                   </option>
                 ))}
               </select>
@@ -432,9 +446,9 @@ export default function IshchilarPage() {
               className="mt-0.5 w-4 h-4 accent-[rgb(var(--brand))]"
             />
             <span>
-              <span className="font-medium">Ikkala biznesda ishlaydi</span>
+              <span className="font-medium">{t('emp.sharedLabel')}</span>
               <span className="block text-xs text-neutral-400">
-                Oyligi umumiy xarajat bo&apos;lib taqsimlanadi
+                {t('emp.sharedHint')}
               </span>
             </span>
           </label>
@@ -447,7 +461,7 @@ export default function IshchilarPage() {
             }
             className="btn-primary"
           >
-            {creating ? 'Saqlanmoqda…' : "Ishchi qo'shish"}
+            {creating ? t('common.saving') : t('emp.submit')}
           </button>
         </form>
       </div>

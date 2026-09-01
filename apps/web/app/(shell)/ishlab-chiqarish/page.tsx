@@ -3,7 +3,13 @@
 import { useMutation, useQuery } from '@apollo/client';
 import { FormEvent, useMemo, useState } from 'react';
 import { CREATE_BATCH, PRODUCTION_PAGE } from '../../../lib/queries';
-import { formatMoneyInput, parseDecimal, parseQty } from '../../../lib/format';
+import {
+  dateFmt,
+  formatMoneyInput,
+  parseDecimal,
+  parseQty,
+} from '../../../lib/format';
+import { useI18n } from '../../../lib/i18n';
 
 /**
  * Ishlab chiqarish (UI hujjati §8.1): partiya — kirish (xomashyo m³),
@@ -38,10 +44,11 @@ interface PageData {
   inventory: LotRow[];
 }
 
-const fmt = (n: number, d = 1) =>
-  new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: d }).format(n);
-
 export default function IshlabChiqarishPage() {
+  const { t, ts, locale } = useI18n();
+  const fmt = (n: number, d = 1) =>
+    new Intl.NumberFormat(locale, { maximumFractionDigits: d }).format(n);
+
   const { data, loading, error, refetch } =
     useQuery<PageData>(PRODUCTION_PAGE);
   const [createBatch, { loading: saving }] = useMutation(CREATE_BATCH);
@@ -98,7 +105,9 @@ export default function IshlabChiqarishPage() {
       });
       setMsg({
         ok: true,
-        text: `Partiya saqlandi — yield ${res.data.createProductionBatch.yieldPercent}%. Tayyor mahsulot omborga tushdi.`,
+        text: t('prod.saved', {
+          yield: res.data.createProductionBatch.yieldPercent,
+        }),
       });
       setInputVol('');
       setQuantity('');
@@ -106,20 +115,24 @@ export default function IshlabChiqarishPage() {
     } catch (err) {
       setMsg({
         ok: false,
-        text: err instanceof Error ? err.message : 'Xato yuz berdi.',
+        text: ts(err instanceof Error ? err.message : null),
       });
     }
   }
 
-  if (loading) return <p className="text-neutral-500">Yuklanmoqda…</p>;
+  if (loading) return <p className="text-neutral-500">{t('common.loading')}</p>;
   if (error)
-    return <p className="text-red-600 text-sm">Xato: {error.message}</p>;
+    return (
+      <p className="text-red-600 text-sm">
+        {t('common.errorPrefix', { msg: ts(error.message) })}
+      </p>
+    );
 
   const batches = data?.productionBatches ?? [];
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      <h1 className="text-xl font-bold">Ishlab chiqarish</h1>
+      <h1 className="text-xl font-bold">{t('prod.title')}</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
         {/* ─── Yangi partiya ─── */}
@@ -127,20 +140,23 @@ export default function IshlabChiqarishPage() {
           onSubmit={onSubmit}
           className="card p-5 md:p-6 grid gap-5"
         >
-          <h2 className="font-semibold text-sm">+ Yangi partiya</h2>
+          <h2 className="font-semibold text-sm">{t('prod.new')}</h2>
 
           <label className="grid gap-1.5">
-            <span className="field-label">Xomashyo (lot)</span>
+            <span className="field-label">{t('prod.rawLot')}</span>
             <select
               value={lotId}
               onChange={(e) => setLotId(e.target.value)}
               className="field-input"
             >
-              <option value="">— Lot tanlang —</option>
+              <option value="">{t('prod.pickLot')}</option>
               {lots.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.woodType} · {l.grade} — qoldiq {fmt(l.volumeM3Remaining)}{' '}
-                  m³
+                  {t('prod.lotOption', {
+                    wood: l.woodType,
+                    grade: l.grade,
+                    vol: fmt(l.volumeM3Remaining),
+                  })}
                 </option>
               ))}
             </select>
@@ -148,7 +164,7 @@ export default function IshlabChiqarishPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="grid gap-1.5">
-              <span className="field-label">Kirish hajmi (m³)</span>
+              <span className="field-label">{t('prod.inputVol')}</span>
               <input
                 value={inputVol}
                 onChange={(e) => setInputVol(e.target.value)}
@@ -158,16 +174,19 @@ export default function IshlabChiqarishPage() {
               />
             </label>
             <label className="grid gap-1.5">
-              <span className="field-label">Mahsulot (shablon)</span>
+              <span className="field-label">{t('prod.product')}</span>
               <select
                 value={productId}
                 onChange={(e) => setProductId(e.target.value)}
                 className="field-input"
               >
-                <option value="">— Tanlang —</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.volumePerPiece.toFixed(4)} m³/dona)
+                <option value="">{t('prod.pickProduct')}</option>
+                {templates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>
+                    {t('prod.productOption', {
+                      name: tpl.name,
+                      vol: tpl.volumePerPiece.toFixed(4),
+                    })}
                   </option>
                 ))}
               </select>
@@ -175,7 +194,7 @@ export default function IshlabChiqarishPage() {
           </div>
 
           <label className="grid gap-1.5 sm:max-w-56">
-            <span className="field-label">Chiqqan dona soni</span>
+            <span className="field-label">{t('prod.outQty')}</span>
             <input
               value={quantity}
               onChange={(e) => setQuantity(formatMoneyInput(e.target.value))}
@@ -187,14 +206,14 @@ export default function IshlabChiqarishPage() {
 
           {exceedsLot && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-              ⚠ Lotda yetarli emas — qoldiq{' '}
-              {lot ? fmt(lot.volumeM3Remaining) : 0} m³
+              {t('prod.exceedsLot', {
+                vol: lot ? fmt(lot.volumeM3Remaining) : 0,
+              })}
             </p>
           )}
           {exceedsInput && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-              ⚠ Chiqish hajmi ({outVol.toFixed(2)} m³) kirishdan katta
-              bo&apos;lishi mumkin emas.
+              {t('prod.exceedsInput', { vol: outVol.toFixed(2) })}
             </p>
           )}
           {msg && (
@@ -210,25 +229,27 @@ export default function IshlabChiqarishPage() {
           )}
 
           <button disabled={!canSubmit} className="btn-primary sm:max-w-xs">
-            {saving ? 'Saqlanmoqda…' : 'Partiyani saqlash'}
+            {saving ? t('common.saving') : t('prod.submit')}
           </button>
         </form>
 
         {/* ─── Jonli yield paneli ─── */}
         <aside className="bg-brand-faint border border-brand/20 rounded-2xl p-5 grid gap-3 lg:sticky lg:top-20">
           <h2 className="text-sm font-bold text-brand tracking-wide">
-            Chiqim (yield) hisobi
+            {t('prod.yieldPanel')}
           </h2>
           <dl className="grid gap-2.5 text-sm">
             <div className="flex justify-between">
-              <dt className="text-neutral-500">Kirish (xomashyo)</dt>
+              <dt className="text-neutral-500">{t('prod.inputRow')}</dt>
               <dd className="font-semibold tabular-nums">
                 {inVol > 0 ? fmt(inVol, 2) : '—'} m³
               </dd>
             </div>
             <div className="flex justify-between border-b border-brand/10 pb-2.5">
               <dt className="text-neutral-500">
-                Chiqish {qty > 0 ? `(${fmt(qty, 0)} dona)` : ''}
+                {qty > 0
+                  ? t('prod.outputPieces', { n: fmt(qty, 0) })
+                  : t('prod.outputRow')}
               </dt>
               <dd className="font-semibold tabular-nums">
                 {outVol > 0 ? outVol.toFixed(2) : '—'} m³
@@ -237,7 +258,7 @@ export default function IshlabChiqarishPage() {
           </dl>
           <div className="bg-white rounded-xl p-4 border border-brand/15 text-center">
             <div className="text-[11px] tracking-wider text-neutral-400 font-semibold">
-              YIELD (CHIQIM %)
+              {t('prod.yieldLabel')}
             </div>
             <div
               className={`text-3xl font-bold tabular-nums mt-1 ${
@@ -252,7 +273,7 @@ export default function IshlabChiqarishPage() {
             </div>
             {yieldPct > 0 && (
               <div className="text-xs text-neutral-400 mt-1">
-                {(inVol - outVol).toFixed(2)} m³ chiqindi
+                {t('prod.waste', { vol: (inVol - outVol).toFixed(2) })}
               </div>
             )}
           </div>
@@ -262,31 +283,37 @@ export default function IshlabChiqarishPage() {
       {/* ─── Partiyalar tarixi ─── */}
       <section className="card overflow-hidden">
         <h2 className="px-5 py-3.5 border-b border-neutral-100 font-semibold text-sm">
-          Partiyalar tarixi
+          {t('prod.history')}
         </h2>
         {batches.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-neutral-500">
-            Hozircha partiya yo&apos;q.
-          </p>
+          <p className="px-5 py-6 text-sm text-neutral-500">{t('prod.empty')}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[11px] tracking-wider text-neutral-400 border-b border-neutral-100">
-                  <th className="px-5 py-3 font-semibold">SANA</th>
-                  <th className="px-5 py-3 font-semibold">MAHSULOT</th>
-                  <th className="px-5 py-3 font-semibold text-right">
-                    XOMASHYO
+                  <th className="px-5 py-3 font-semibold">
+                    {t('prod.col.date')}
                   </th>
-                  <th className="px-5 py-3 font-semibold text-right">CHIQISH</th>
-                  <th className="px-5 py-3 font-semibold text-right">YIELD</th>
+                  <th className="px-5 py-3 font-semibold">
+                    {t('prod.col.product')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-right">
+                    {t('prod.col.raw')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-right">
+                    {t('prod.col.output')}
+                  </th>
+                  <th className="px-5 py-3 font-semibold text-right">
+                    {t('prod.col.yield')}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-50">
                 {batches.map((b) => (
                   <tr key={b.id}>
                     <td className="px-5 py-3.5 text-neutral-500">
-                      {new Date(b.date).toLocaleDateString('uz-UZ')}
+                      {dateFmt(b.date)}
                     </td>
                     <td className="px-5 py-3.5 font-medium">
                       {templateName(b.outputProductId)} × {b.outputQuantity}
